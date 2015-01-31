@@ -1,0 +1,144 @@
+This file contains the set of changes that have gone into this program.
+
+Be sure to enter the Author, date, and change description.
+
+--------------------------------------------------------------------------
+Minimac2 Changes:
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+Version	: 0.1.1
+Author	: Sayantan Das
+Date	: May 25 2013
+
+    	Started working on the basis of code of minimac. Implemented State
+	Space Reduction Method for HMM calculations. Implemented the Para-
+	meter Estimation part and Optimal Allocation part. 
+
+--------------------------------------------------------------------------
+Version	: 0.2.1
+Author	: Sayantan Das
+Date	: January 29 2014
+
+	Improved on the speed in parameter estimation part by NOT calcula-
+	ting the optimal allocation everytime, instead update it from the
+	original allocation. Updated to use --refSnps for reference, use
+	--vcfTarget for target files.
+    
+--------------------------------------------------------------------------
+Version	: 0.4.1
+Author	: Sayantan Das
+Date	: March 14 2014 
+
+    	Removed bug with --sample. Added lots of other options like --chr,
+	--start, --end, --rounds, --states etc. Added data structure for 
+	variant type. Added structure so as NOT to use haplotype data after 
+	reading it once. Now the code uses the reduced haplotype structure
+	once it has read the data. This was uses lesser memory.
+
+--------------------------------------------------------------------------
+Version	: 0.5.1
+Author	: Sayantan Das
+Date	: April 9, 2014
+
+    	Removed futher bugs. Modified to use lesser memory and run faster.
+	The Unique.cpp file was updated according to Goncalo's packVcf so-
+	ftware. Target Data is being read more effeciently. Scaffolding
+	done locally during imputation. Changed name to Minimac2.
+
+--------------------------------------------------------------------------
+Version : 0.6.1
+Author  : Sayantan Das
+Date    : June 7, 2014
+
+        Worked on an important bug that gave memory overflow in large sa-
+	mples. Name changed to Minimac3. Added utility for VCF output fo-
+	rmat that would enable users to easy data manipulation. 
+
+--------------------------------------------------------------------------
+Version : 0.6.2
+Author  : Sayantan Das
+Date    : June 8, 2014
+
+        Edited bug in VCF packing part that was giving slightly less opt-
+	mized configurations. 
+
+--------------------------------------------------------------------------
+
+
+Version : 0.7.1
+Author  : Sayantan Das
+Date    : June 8, 2014
+
+        Added the --golden option that can calculate the actual R-square
+	if the true/hard genotypes are provided in a vcf file. Made minor 
+	editions for debugging.
+
+--------------------------------------------------------------------------
+
+
+Version : 1.0.0
+Author  : Sayantan Das
+Date    : July 21, 2014
+
+        Added the --vcfOutput option that will output the dosage in VCF
+	format as well. Improved it by allowing to flush out VCF files
+	after every 200 samples to save memory. Also implemented openmp
+	to allow parallel computing.
+
+--------------------------------------------------------------------------
+
+Version : 1.0.1
+Author  : Sayantan Das
+Date    : August 6, 2014
+
+        Added the --window option that will allow a buffer region around
+	chunks. Also implemented this --start, --end and --window option
+	on OPTM files. Minimac3 will, thus, be able to handle chunks on 
+	OPTM files as well. However, it will not perform the optimal all-
+	-ocation again but just extract the chunk from the given file.
+
+--------------------------------------------------------------------------
+
+Version : 1.0.2
+Author  : Sayantan Das
+Date    : August 28, 2014
+
+        Mended a bug related to --vcfoutput option when used with --gzip 
+	option. Also added a option --format to manage handles in the
+	FORMAT field for output VCF files.
+
+--------------------------------------------------------------------------
+
+
+Version : 1.0.4
+Author  : Sayantan Das
+Date    : September 19, 2014
+
+        Improved the chuking option for the compressed files. Updated name
+	OPTM to M3VCF (Minimac3 VCF). Changed handle to --processReference.
+	Added the option to add parameter estimates within M3VCF files wh-
+	-ich can be used for later runs. Added a new handle --updateModel
+	that will allow users to update these estimates using the target
+	panel as well, if and when they think necessary.
+
+--------------------------------------------------------------------------
+
+Version : 1.0.5
+Author  : Sayantan Das
+Date    : October 3, 2014
+
+        Implemented chromosome X imputation (both PAR and non-PAR). Also
+	added bgzip option to enable tabix options.
+
+--------------------------------------------------------------------------
+
+Version : 1.0.6
+Author  : Sayantan Das
+Date    : November 4, 2014
+
+        Mended some minor bugs.
+
+--------------------------------------------------------------------------
+
+
+
