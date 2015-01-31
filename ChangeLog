@@ -1,9 +1,7 @@
 This file contains the set of changes that have gone into this program.
 
-Be sure to enter the Author, date, and change description.
-
 --------------------------------------------------------------------------
-Minimac2 Changes:
+Minimac3 Changes:
 --------------------------------------------------------------------------
 --------------------------------------------------------------------------
 Version	: 0.1.1
@@ -140,5 +138,10 @@ Date    : November 4, 2014
 
 --------------------------------------------------------------------------
 
+Version : 1.0.7
+Author  : Sayantan Das
+Date    : January 31, 2015
 
+        Fixed minor bugs and made thigsn ready for final release !!!
 
+--------------------------------------------------------------------------
