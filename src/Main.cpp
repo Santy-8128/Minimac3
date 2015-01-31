@@ -568,10 +568,10 @@ void helpFile()
 
     printf("\t It is an algorithm for genotypic imputation that works on phased genotypes (say from MaCH).\n");
     printf("\t Minimac3 is designed to handle very large reference panels in a more computationally efficient\n");
-    printf("\t way with no loss of accuracy.\n\n\n\n");
+    printf("\t way with no loss of accuracy.\n\n");
 
     printf("\t Please visit web-page <http://genome.sph.umich.edu/wiki/Minimac3> for further details on \n");
-    printf("\t documentation and usage\n\n\n\n");
+    printf("\t documentation and usage\n\n\n");
 
     printf(" The most commonly used parameters are explained below:\n\n");
 
@@ -613,7 +613,7 @@ void helpFile()
     printf("                            during parameter optimization. By default = 200.\n");
   
   printf("\n                  --rec   : Recombination file (.recom) from previous run of imputation. \n"); 
-  printf("\n                  --err   : Error file (.erate) from previous run of imputation. \n");
+   printf("                  --err   : Error file (.erate) from previous run of imputation. \n");
     
     printf("               --cpus 5   : Number of cpus for parallel computing. Works only with Minimac3-omp.\n\n");
 
