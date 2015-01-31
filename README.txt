@@ -1,5 +1,5 @@
 This is a sample repository setup for a program that uses the statgen library.
-It is a starting point you can use for creating your own program.
+It is a starting point you can use for creatinkllg your own program.
 
 Update Makefile, replacing any occurrances of SAMPLE_PROGRAM with your program name.
 Update EXE and add your own cpp/h files to the appropriate lines of the Makefile.
