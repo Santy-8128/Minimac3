@@ -561,72 +561,34 @@ void helpFile()
 {
 
 
-	printf("\n  URL = https://statgen.sph.umich.edu/wiki/Minimac3\n");
+	printf("\n  URL = http://genome.sph.umich.edu/wiki/Minimac3\n");
 
 
     printf("\n\n\t  Minimac3 is a lower memory and more computationally efficient implementation of \"minimac\".\n");
 
     printf("\t It is an algorithm for genotypic imputation that works on phased genotypes (say from MaCH).\n");
-    printf("\t The name is derived from \"Minimac eXpedited\". Minimac3 is designed to handle very large re-\n");
-    printf("\t ference panels in a more computationally efficient way with no loss of accuracy. This algo-\n");
-    printf("\t rithm analyzes only the unique sets of haplotypes in small genomic segments, thereby saving\n");
-    printf("\t on time-complexity, computational memory but no loss in degree of accuracy.\n\n\n\n");
+    printf("\t Minimac3 is designed to handle very large reference panels in a more computationally efficient\n");
+    printf("\t way with no loss of accuracy.\n\n\n\n");
 
-    printf(" The usage has the following main five segments (List of Usage Options Given Below):\n\n");
-
-
-    printf("     Reference Haplotypes : Minimac3 can handle either VCF files or OPTM files as input for the\n");
-    printf("                            reference panel. The program can itself identify the type of file,\n");
-    printf("                            and no handle is necessary for that. OPTM files are customized files \n");
-    printf("                            created by Minimac3 (possibly in some previous run) that stores large \n");
-    printf("                            reference panels in a compact form so as to save memory and computation \n");
-    printf("                            time involved in reading large files. OPTM files must be generated \n");
-    printf("                            in some previous run of Minimac3 and can be saved and used in later \n");
-    printf("                            runs for faster loading of data. See section on OPTM files and examples\n");
-    printf("                            below on how to use them.\n");
-
-
-  printf("\n                            \"--refHaps\" denotes the main input reference file which is either a VCF \n");
-    printf("                            file or OPTM file. No handle is necessary for denoting type of file, \n");
-    printf("                            program will detect it itself. \n\n");
-
-
-
-    printf("     Target Haplotypes    : Minimac3 can handle either VCF files or MaCH files as input for\n");
-    printf("                            the target/gwas data. The program can itself identify the type of \n");
-    printf("                            file, and no handle is necessary for that. Note that input VCF files \n");
-    printf("                            would be automatically assumed to be phased\n");
-  printf("\n                            \"--haps\" denotes the main input target file which is either a VCF file\n");
-    printf("                            (.vcf or .vcf.gz) or a MaCH phased file (.mach or .haps). The extensions\n");
-    printf("                            are not mandatory. Zipped formats are supported.\n");
- printf("\n                            \"--snps\" denotes the marker name input file for target data panel. This \n");
-    printf("                            panel parameter is mandatory if user is using MaCH phased files for the   \n");
-    printf("                            target and will be ignored if VCF files are used. Markers which are in  \n");
-    printf("                            the target panel and NOT in the reference panel would be excluded from \n");
-    printf("                            the output files. User must merge these extra markers back to the original  \n");
-    printf("                            data in order to analyze them. \n\n");
+    printf(" The most commonly used parameters are explained below:\n\n");
 
     printf("   List of Usage Options  :\n\n");
 
-    printf("     --refHaps filename   : VCF file or OPTM file containing haplotype data for reference panel.\n");
-    printf("                 --rsid   : This option specifies that the marker names should be read from ID \n");
-    printf("                            column of VCF file provided in --refHaps.\n");
-    printf("\n        --haps filename   : File containing haplotype data for target (gwas) samples. Can be VCF \n");
-    printf("                            file or MaCH haplotype file. Zipped versions allowed.\n");
-    printf("        --snps filename   : File containing marker information for the target (gwas) samples.\n");
-    printf("                            It is mandatory for MaCH files but will be ignored for VCF files.\n");
-    printf("\n        --prefix output   : Prefix for all output files generated. By default: [Minimac3.Output]\n");
-    printf("                 --gzip   : If ON, output files will be gzipped.\n");
-    printf("     --processReference   : This option will only convert an input VCF file to OPTM format\n");
+    printf("     --refHaps filename   : VCF file or M3VCF  file containing haplotype data for reference panel.\n");
+  printf("\n        --haps filename   : File containing haplotype data for target (gwas) samples. Must be VCF \n");
+    printf("                            file. Zipped versions allowed.\n");
+  printf("\n        --prefix output   : Prefix for all output files generated. By default: [Minimac3.Output]\n");
+    printf("               --nogzip   : If ON, output files will NOT be gzipped.\n");
+    printf("     --processReference   : This option will only convert an input VCF file to M3VCF format\n");
     printf("                            (maybe for a later run of imputation). If this option is ON, \n");
-    printf("                            no imputation would be performed and thus all other parameters \n");
+    printf("                            no imputation would be performed and thus all target parameters \n");
     printf("                            will be ignored (of course, except for parameters on Reference \n");
     printf("                            Haplotypes and Subsetting Options).\n");
-  printf("\n       --onlyRefMarkers   : If ON, markers which were PRESENT in the gwas panel but ABSENT \n");
-    printf("                            in reference panel will be omitted from the output. By default,\n");
-    printf("                            it is OFF and these markers, although NOT important for the impu-\n");
-    printf("                            -tation, will be present in the output files\n");
-  printf("\n            --vcfOutput   : If ON, imputed data will be output as VCF file as well. [Default: ON]. \n");
+ // printf("\n       --onlyRefMarkers   : If ON, markers which were PRESENT in the gwas panel but ABSENT \n");
+ //   printf("                            in reference panel will be omitted from the output. By default,\n");
+//    printf("                            it is OFF and these markers, although NOT important for the impu-\n");
+ //   printf("                            -tation, will be present in the output files\n");
+ // printf("\n            --vcfOutput   : If ON, imputed data will be output as VCF file as well. [Default: ON]. \n");
     printf("           --doseOutput   : If ON, imputed data will be output as dosage file as well [Default: OFF].\n");
     printf("            --hapOutput   : If ON, phased imputed data will be output as well [Default: OFF]. \n");
     printf("               --format   : Specifies which fields to output for the FORMAT field in output \n");
