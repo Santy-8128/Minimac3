@@ -1,13 +1,27 @@
-This is a sample repository setup for a program that uses the statgen library.
-It is a starting point you can use for creatinkllg your own program.
+Minimac3 is a lower memory and more computationally efficient
+implementation of the genotype imputation algorithms in 
+minimac and minimac2.
 
-Update Makefile, replacing any occurrances of SAMPLE_PROGRAM with your program name.
-Update EXE and add your own cpp/h files to the appropriate lines of the Makefile.
+<<< SEE http://genome.sph.umich.edu/wiki/Minimac3 FOR DOCUMENTATION >>>
 
---------------------------------------------------------------------------------
-To use git to clone the required statgen library:
-  make cloneLib
-Next, to build libStatGen and this program:
-  make
-To install:
-  make install INSTALLDIR=pathToInstall
+Users should follow the following steps to compile Minimac3 
+(if they downloaded the source files) or should skip them
+(if they downloaded the binary executable).
+
+## EXTRACT MINIMAC3 AND COMPILE
+ 
+tar -xzvf Minimac3.v1.tar.gz
+cd Minimac3/
+make
+
+A typical Minimac3 command line for imputation is as follows
+
+../bin/Minimac3 --refHaps refPanel.vcf \ 
+                --haps targetStudy.vcf \
+                --prefix testRun
+
+Here refPanel.vcf is the reference panel used in VCF format (e.g. 1000 Genomes), 
+targetStudy.vcf is the phased GWAS data in VCF format, 
+and testRun is the prefix for the output files.
+
+<<< SEE http://genome.sph.umich.edu/wiki/Minimac3 FOR DOCUMENTATION>>>
