@@ -561,14 +561,17 @@ void helpFile()
 {
 
 
-	printf("\n  URL = http://genome.sph.umich.edu/wiki/Minimac3\n");
+	printf("\n URL = http://genome.sph.umich.edu/wiki/Minimac3\n");
 
 
-    printf("\n\n\t  Minimac3 is a lower memory and more computationally efficient implementation of \"minimac\".\n");
+    printf("\n\n\t Minimac3 is a lower memory and more computationally efficient implementation of \"minimac\".\n");
 
     printf("\t It is an algorithm for genotypic imputation that works on phased genotypes (say from MaCH).\n");
     printf("\t Minimac3 is designed to handle very large reference panels in a more computationally efficient\n");
     printf("\t way with no loss of accuracy.\n\n\n\n");
+
+    printf("\t Please visit web-page <http://genome.sph.umich.edu/wiki/Minimac3> for further details on \n");
+    printf("\t documentation and usage\n\n\n\n");
 
     printf(" The most commonly used parameters are explained below:\n\n");
 
@@ -578,12 +581,18 @@ void helpFile()
   printf("\n        --haps filename   : File containing haplotype data for target (gwas) samples. Must be VCF \n");
     printf("                            file. Zipped versions allowed.\n");
   printf("\n        --prefix output   : Prefix for all output files generated. By default: [Minimac3.Output]\n");
-    printf("               --nogzip   : If ON, output files will NOT be gzipped.\n");
+    printf("              --nobgzip   : If ON, output files will NOT be gzipped.\n");
     printf("     --processReference   : This option will only convert an input VCF file to M3VCF format\n");
     printf("                            (maybe for a later run of imputation). If this option is ON, \n");
     printf("                            no imputation would be performed and thus all target parameters \n");
     printf("                            will be ignored (of course, except for parameters on Reference \n");
     printf("                            Haplotypes and Subsetting Options).\n");
+    printf("          --updateModel   : This option will allow users to use the gwas panel to update the\n");
+    printf("                            parameter estimates (if found in the M3VCF file) during imputation.\n");
+    printf("                            By default, if parameter estimates are found inthe M3VCF file, they\n");
+    printf("                            will be used without being updated. This default setting should give\n");
+    printf("                            users accurate enough estimates and this handle need NOT be used unless \n");
+    printf("                            the user has strong reasons to do so.\n");
  // printf("\n       --onlyRefMarkers   : If ON, markers which were PRESENT in the gwas panel but ABSENT \n");
  //   printf("                            in reference panel will be omitted from the output. By default,\n");
 //    printf("                            it is OFF and these markers, although NOT important for the impu-\n");
@@ -597,10 +606,15 @@ void helpFile()
     printf("         --start 100000   : Start position for imputation by chunking.\n");
     printf("           --end 200000   : End position for imputation by chunking. \n");
     printf("         --window 20000   : Length of buffer region on either side of --start and --end.\n");
+  
   printf("\n             --rounds 5   : Rounds of optimization for model parameters, which describe population \n");
     printf("                            recombination rates and per SNP error rates. By default = 5.\n");
     printf("           --states 200   : Maximum number of reference (or target) haplotypes to be examined  \n");
     printf("                            during parameter optimization. By default = 200.\n");
+  
+  printf("\n                  --rec   : Recombination file (.recom) from previous run of imputation. \n"); 
+  printf("\n                  --err   : Error file (.erate) from previous run of imputation. \n");
+    
     printf("               --cpus 5   : Number of cpus for parallel computing. Works only with Minimac3-omp.\n\n");
 
 
