@@ -87,6 +87,7 @@ class findUnique
         vector<int> minCost;
         vector<int> minAllocation;
         vector<int> optimalAllocation;
+        int transFactor, cisFactor;
 
          findUnique()
          {
@@ -138,6 +139,14 @@ class findUnique
 
          double FlushBlocks(vector<int> &optEndPoints,vector<ReducedHaplotypeInfo> &HapInfo, vector<variant> &varList, int LastflushPos,vector<String> & haplotypes, vector<int> & cost,
                    vector<int> & bestComplexity, vector<int> & bestSlice, vector<vector<int> > &bestIndex);
+
+
+        void updateCoeffs(int trans,int cis)
+        {
+            transFactor = trans;
+            cisFactor = cis;
+
+        }
 
 
 };

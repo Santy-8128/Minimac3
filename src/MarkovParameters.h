@@ -2,7 +2,11 @@
 #define __MARKOVPARAMETERS_H__
 
 
-
+#include "InputFile.h"
+#include <cstdio>
+#include <cmath>
+#include <fstream>
+#include <string>
 #include "MathVector.h"
 #include "StringArray.h"
 

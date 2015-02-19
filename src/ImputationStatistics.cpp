@@ -24,7 +24,7 @@ TargetPanelFreq.resize(markers, 0.0);
 ImputationStatistics::~ImputationStatistics()
    { }
 
-void ImputationStatistics::Update(vector<double> &doses, vector<double> &loo,vector<char> &observed, vector<char> &major)
+void ImputationStatistics::Update(vector<float> &doses, vector<float> &loo,vector<char> &observed, vector<char> &major)
 {
     for (int i = 0; i < (int)doses.size(); i++)
     {
@@ -32,13 +32,11 @@ void ImputationStatistics::Update(vector<double> &doses, vector<double> &loo,vec
         sumSq[i] += doses[i] * doses[i];
         sumCall[i] += doses[i] > 0.5 ? doses[i] : 1.0 - doses[i];
         count[i] ++;
-//        cout<<sum[i]<<endl;
     }
 
     for (int i = 0; i < (int)loo.size(); i++)
         if (observed[i])
         {
-            //cout<<i<<" "<<loo[i]<<endl;
             looSum[i] += loo[i];
             looSumSq[i] += loo[i] * loo[i];
             looProduct[i] += (observed[i] == major[i]) ? loo[i] : 0.0;
@@ -47,20 +45,11 @@ void ImputationStatistics::Update(vector<double> &doses, vector<double> &loo,vec
         }
 }
 
-void ImputationStatistics::GoldenUpdate(vector<double> &doses, vector<double> &loo,vector<char> &observed, vector<char> &major)
+void ImputationStatistics::GoldenUpdate(vector<float> &doses, vector<float> &loo,vector<char> &observed, vector<char> &major)
 {
-//    for (int i = 0; i < (int)doses.size(); i++)
-//    {
-//        sum[i] += doses[i];
-//        sumSq[i] += doses[i] * doses[i];
-//        sumCall[i] += doses[i] > 0.5 ? doses[i] : 1.0 - doses[i];
-//        count[i] ++;
-//        //cout<<doses[i]<<endl;
-//    }
 
     for (int i = 0; i < (int)doses.size(); i++)
         {
-            //cout<<observed[]<<endl;
 
             if (observed[i])
         {
@@ -75,20 +64,11 @@ void ImputationStatistics::GoldenUpdate(vector<double> &doses, vector<double> &l
 }
 
 
-void ImputationStatistics::GoldenUpdate2(vector<double> &doses, vector<char> &observed1,vector<char> &observed2, vector<char> &major)
+void ImputationStatistics::GoldenUpdate2(vector<float> &doses, vector<char> &observed1,vector<char> &observed2, vector<char> &major)
 {
-//    for (int i = 0; i < (int)doses.size(); i++)
-//    {
-//        sum[i] += doses[i];
-//        sumSq[i] += doses[i] * doses[i];
-//        sumCall[i] += doses[i] > 0.5 ? doses[i] : 1.0 - doses[i];
-//        count[i] ++;
-//        //cout<<doses[i]<<endl;
-//    }
 
     for (int i = 0; i < (int)doses.size(); i++)
         {
-            //cout<<observed[]<<endl;
 
             if (observed1[i] && observed2[i])
         {
@@ -175,8 +155,6 @@ double ImputationStatistics::GoldenRgeno(int marker)
 
    // n * Sum xy - Sum x * Sum y
    double p = looCount[marker] * looProduct[marker] - looSum[marker] * looObserved[marker];
-//if(marker==64)
-
 
 
 
@@ -186,14 +164,10 @@ double ImputationStatistics::GoldenRgeno(int marker)
 
    if (qx / (qy + 1e-30) < 1e-3)
       return 0;
-
- //cout<<endl<<marker<<" DERPINA  = "<<looCount[marker] <<"\t"<<looObserved[marker] <<"\t"<<  looObserved[marker]<<endl;//looObserved[marker]<<"\t"<<looSum[marker]<<endl;
-if (qy / (qx + 1e-30) < 1e-3)
+    if (qy / (qx + 1e-30) < 1e-3)
       return 0.0;
 
    double r = p / (qx * qy + 1e-30);
-//if(marker==64)
-//        cout<<"DERP  = "<<r<<endl;//looObserved[marker]<<"\t"<<looSum[marker]<<endl;
 
    return r;
    }
@@ -215,16 +189,10 @@ double ImputationStatistics::GoldenR(int marker)
  if (qy / (qx + 1e-30) < 1e-3)
       return 0.0;
 
-//if(marker==162)
-//    cout<<endl<<marker<<" DERPINA  = "<<(looCount[marker] * looSumSq[marker] - looSum[marker] * looSum[marker]) <<"\t"<<qy<<"\t"<<  looObserved[marker]<<endl;//looObserved[marker]<<"\t"<<looSum[marker]<<endl;
-//if(marker==162)
-//    cout<<endl<<marker<<" DERPINA  = "<<(double)abs((looCount[marker] * looSumSq[marker] - looSum[marker] * looSum[marker])) <<"\t"<<qy<<"\t"<<  looObserved[marker]<<endl;//looObserved[marker]<<"\t"<<looSum[marker]<<endl;
-//cout<<abs(51)<<endl;
+
 TargetPanelFreq[marker]=1-looObserved[marker]/(double)looCount[marker];
 
    double r = p / (qx * qy + 1e-30);
-//if(marker==162)
-//        cout<<"DERP  = "<<r*r<<"\t"<<looSumSq[marker]<<"\t"<<looSum[marker]<<endl;
 
    return r;
    }

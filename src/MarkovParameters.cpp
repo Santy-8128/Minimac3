@@ -1,12 +1,4 @@
 #include "MarkovParameters.h"
-#include "InputFile.h"
-#include <cstdio>
-#include <cmath>
-#include <fstream>
-#include <string>
-
-#include <boost/tokenizer.hpp>
-#include <boost/lexical_cast.hpp>
 
 using namespace std;
 
@@ -15,9 +7,6 @@ void MarkovParameters::ReadErrorRates(String &filename)
 {
     cout<<"\n Reading Genotyping Error values from Input File "<<filename<<endl;
     Error.clear();
-    typedef boost::tokenizer< boost::char_separator<char> > wsTokenizer;
-    wsTokenizer::iterator i;
-	boost::char_separator<char> Tabsep("\t");
     ifstream ifs(filename);
     string line;
     int count=-1;
@@ -27,10 +16,11 @@ void MarkovParameters::ReadErrorRates(String &filename)
         count++;
         if(count>0)
         {
-            wsTokenizer t4(line,Tabsep);
-            i = t4.begin();
-            ++i;
-            double val=atof(i->c_str());
+            char *end_str1;
+            char * pch=strtok_r ((char*)line.c_str(),"\t", &end_str1);;
+            pch = strtok_r (NULL, "\t", &end_str1);
+
+            double val=atof(pch);
 
             if(val<0.0 || val > 1.0)
             {
@@ -60,9 +50,6 @@ void MarkovParameters::ReadCrossoverRates(String &filename)
 {
     cout<<"\n Reading Recombination Fraction values from Input File "<<filename<<endl<<endl;
     Recom.clear();
-    typedef boost::tokenizer< boost::char_separator<char> > wsTokenizer;
-    wsTokenizer::iterator i;
-	boost::char_separator<char> Tabsep("\t");
     ifstream ifs(filename);
     string line;
     int count=-1;
@@ -72,10 +59,11 @@ void MarkovParameters::ReadCrossoverRates(String &filename)
         count++;
         if(count>0)
         {
-            wsTokenizer t4(line,Tabsep);
-            i = t4.begin();
-            ++i;
-            double val=atof(i->c_str());
+            char *end_str1;
+            char * pch=strtok_r ((char*)line.c_str(),"\t", &end_str1);;
+            pch = strtok_r (NULL, "\t", &end_str1);
+
+            double val=atof(pch);
             if(val<0.0 || val > 1)
             {
                 cout<<" Recombination Fraction is outside boundary values [0.0 - 1.0] at position "<<count<<" in Input File "<<filename<<endl;
@@ -126,8 +114,6 @@ void MarkovParameters::CopyParameters(MarkovParameters & rhs)
 
 void MarkovParameters::CopyParameters(MarkovParameters * rhs)
 {
-
-//cout<<noMarker<<"\t"<<rhs->noMarker<<endl;
 
     if(noMarker!=rhs->noMarker)
     {

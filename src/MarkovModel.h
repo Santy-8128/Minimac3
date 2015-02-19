@@ -7,11 +7,11 @@
 #include "StringBasics.h"
 #include "MathVector.h"
 #include "MarkovModel.h"
+#include "Random.h"
+
+#include "Unique.h"
 
 #include "ImputationStatistics.h"
-#include<boost/random/uniform_real.hpp>
-#include<boost/random/variate_generator.hpp>
-#include<boost/random/mersenne_twister.hpp>
 
 
 
@@ -22,71 +22,65 @@ class MarkovModel : public MarkovParameters
 
         double backgroundError;
         int refCount,tarCount,noReducedStatesCurrent;
-        vector<vector<vector<double> > > leftProb;
-        vector<vector<vector<double> > > leftNoRecoProb;
-        vector<vector<double> > junctionLeftProb;
-        vector<vector<double> > junctionRightProb;
+        vector<vector<vector<float> > > leftProb;
+        vector<vector<vector<float> > > leftNoRecoProb;
+        vector<vector<float> > junctionLeftProb;
+        vector<vector<float> > junctionRightProb;
         int NoPrecisionJumps;
         vector<char> major;
         vector<bool> missing;
         vector<bool> PrecisionJump;
-        vector<double>    imputedDose, imputedHap, leaveOneOut;
+        vector<float>    imputedDose, imputedHap, leaveOneOut;
         vector<char> imputedAlleles,imputedAlleleNumber;
 
 
-        bool            Transpose       (vector<double> &from,vector<double> &to,  vector<double> &noRecomProb, double reco,vector<int> &uniqueCardinality);
-        void            Condition       (int markerPos,vector<double> &Prob, vector<double> &noRecomProb,
+        bool            Transpose       (vector<float> &from,vector<float> &to,  vector<float> &noRecomProb, double reco,vector<int> &uniqueCardinality);
+        void            Condition       (int markerPos,vector<float> &Prob, vector<float> &noRecomProb,
                                          char observed,double e,double freq,ReducedHaplotypeInfo &Info);
         void            WalkLeft        (HaplotypeSet &tHap, int &hapID,
-                                        vector<vector<double> > &leftProb,vector<vector<double> > &noRecomProb,vector<double> &foldedProb,
+                                        vector<vector<float> > &leftProb,vector<vector<float> > &noRecomProb,vector<float> &foldedProb,
                                         int start,int end,ReducedHaplotypeInfo &Info,vector<vector<double> > &alleleFreq);
 
-        void            Impute          (HaplotypeSet &tHap, vector<double> &rightFoldProb,
+        void            Impute          (HaplotypeSet &tHap, vector<float> &rightFoldProb,
                                          int &hapID,
-                                         vector<vector<double> > &leftProb, vector<vector<double> > &leftNoRecomProb,
-                                         vector<double> &rightProb, vector<double> &rightNoRecomProb,
-                                         vector<double> &juncLeftProb,vector<double> &juncRightProb,
+                                         vector<vector<float> > &leftProb, vector<vector<float> > &leftNoRecomProb,
+                                         vector<float> &rightProb, vector<float> &rightNoRecomProb,
+                                         vector<float> &juncLeftProb,vector<float> &juncRightProb,
                                          int start,int end,ReducedHaplotypeInfo &Info,int type,vector<vector<double> > &alleleFreq);
 
         void            Impute          (int position, char observed,
-                                        vector<double> &leftProb,vector<double> &rightProb,
-                                        vector<double> &leftNoRecoProb,vector<double> &rightNoRecoProb,
-                                        vector<double> &leftEndProb,vector<double> &rightEndProb,
-                                        vector<double> &Constants,ReducedHaplotypeInfo &Info,
+                                        vector<float> &leftProb,vector<float> &rightProb,
+                                        vector<float> &leftNoRecoProb,vector<float> &rightNoRecoProb,
+                                        vector<float> &leftEndProb,vector<float> &rightEndProb,
+                                        vector<float> &Constants,ReducedHaplotypeInfo &Info,
                                         vector<vector<double> > &alleleFreq);
         void            initializeMatrices
                                         (HaplotypeSet &tHap,HaplotypeSet &rHap,
                                          vector<int> &optStructure,
                                          vector<ReducedHaplotypeInfo> &StructureInfo);
 
-
-         void            ProfileModel    (HaplotypeSet &tHap, HaplotypeSet &rHap,
-                                        vector<vector<double> > &leftProb, vector<vector<double> > &leftNoRecomProb,
-                                        vector<double> &juncLeftProbLeft,vector<double> &juncLeftProbRight,
-                                        int start,int end,ReducedHaplotypeInfo &Info,int &currentState,boost::variate_generator<boost::mt19937&, boost::uniform_real<> > &uni);
-
-        double          CountErrors     (vector<double> &probHap,
+        double          CountErrors     (vector<float> &probHap,
                                         int position, char observed, double e,double freq, ReducedHaplotypeInfo &Info);
 
 
-        double          CountRecombinants(vector<double> &from, vector<double> &to,
-                                        vector<double> &probHap,
+        double          CountRecombinants(vector<float> &from, vector<float> &to,
+                                        vector<float> &probHap,
                                         double r,bool PrecisionMultiply);
 
-        vector<double>                  foldProbabilities           (int bridgeIndex,ReducedHaplotypeInfo &Info,int direction,int noReference);
-        void                            unfoldProbabilities         (int bridgeIndex,vector<double> &recomProb, vector<double> &noRecomProb,
-                                                                    vector<double> &foldedProb,int direction,vector<ReducedHaplotypeInfo> &StructureInfo,int noReference);
+        void            foldProbabilities           (vector<float> &foldProb,int bridgeIndex,ReducedHaplotypeInfo &Info,int direction,int noReference);
+        void                            unfoldProbabilities         (int bridgeIndex,vector<float> &recomProb, vector<float> &noRecomProb,
+                                                                    vector<float> &foldedProb,int direction,vector<ReducedHaplotypeInfo> &StructureInfo,int noReference);
 
-        void            CountExpected   (HaplotypeSet &tHap,int hapID,vector<double> &rightFoldProb,
-                                         vector<vector<double> > &leftProb, vector<vector<double> > &leftNoRecomProb,
-                                         vector<double> &rightProb, vector<double> &rightNoRecomProb,
-                                         vector<double> &juncLeftProb,vector<double> &juncRightProb,
+        void            CountExpected   (HaplotypeSet &tHap,int hapID,vector<float> &rightFoldProb,
+                                         vector<vector<float> > &leftProb, vector<vector<float> > &leftNoRecomProb,
+                                         vector<float> &rightProb, vector<float> &rightNoRecomProb,
+                                         vector<float> &juncLeftProb,vector<float> &juncRightProb,
                                          int start,int end,ReducedHaplotypeInfo &Info,vector<vector<double> > &alleleFreq);
 
-        void            CreatePosteriorProb(vector<double> &leftProb,vector<double> &rightProb,
-                                         vector<double> &leftNoRecoProb,vector<double> &rightNoRecoProb,
-                                         vector<double> &leftEndProb,vector<double> &rightEndProb,
-                                         vector<double> &Constants,vector<double> &probHap,ReducedHaplotypeInfo &Info);
+        void            CreatePosteriorProb(vector<float> &leftProb,vector<float> &rightProb,
+                                         vector<float> &leftNoRecoProb,vector<float> &rightNoRecoProb,
+                                         vector<float> &leftEndProb,vector<float> &rightEndProb,
+                                         vector<float> &Constants,vector<float> &probHap,ReducedHaplotypeInfo &Info);
 
                         MarkovModel     (HaplotypeSet &tHap,HaplotypeSet &rHap, vector<bool> &miss, vector<double> &err, vector<double> &reco,vector<char> &maj)
                         {

@@ -23,16 +23,17 @@ HDRONLY =
 # Example:
 DATE=$(shell date)
 USER=$(shell whoami)
-USER_COMPILE_VARS = -DDATE="\"${DATE}\"" -DUSER="\"${USER}\"" -lcrypto
+USER_COMPILE_VARS = -DDATE="\"${DATE}\"" -DUSER="\"${USER}\"" 
 #USER_COMPILE_VARS = 
 
 # Specify any additional includes you need.
-USER_INCLUDES =
+USER_INCLUDES = -I ../
 
 # Specify any additional warnings you need to enable.
 # Example: 
 # USER_WARNINGS ?= -Werror -Wno-unused-variable $(shell if [ X$(CCVERSION) \> X4.2.0 ] ; then echo " -Wno-unused-result" ; fi)
-USER_WARNINGS =-Wno-unknown-pragmas
+USER_WARNINGS =-Wno-unknown-pragmas -Wno-unused-local-typedefs
+USER_REMOVES = $(MAKE) -C $(ACTUAL_PATH)  --no-print-directory clean; rm -f $(BINDIR)/$(OMP_EXE); rm -rf $(OBJDIR)/omp
 
 # If you don't want to include the current directory (-I.), uncomment this line:
 #CURRENT_DIR_INCLUDE=
@@ -50,21 +51,36 @@ COMPILE_ANY_CHANGE =
 ########################
 # Include the base Makefile
 PARENT_MAKE = Makefile.src
-# Handle openmp
-OMP_EXE=Minimac3-omp
-ifeq ($(MAKECMDGOALS),openmp)
-	OBJDIR_OPT = $(OBJDIR)/omp
-	EXE = $(OMP_EXE)
-	DATE=$(shell date)
-	USER=$(shell whoami)
-endif
 
 include ../Makefile.inc
+.DEFAULT_GOAL := both
+
+both: opt openmp
+all: opt openmp debug profile
 
 # Handle openmp
-openmp: USER_COMPILE_VARS = -fopenmp -DDATE="\"${DATE}\"" -DUSER="\"${USER}\"" -lcrypto
-openmp: opt
-	echo $(EXE)
+OMP_EXE:=Minimac3-omp
+OBJDIR_OMP := $(OBJDIR)/omp
+OBJECTS_OMP := $(patsubst %,$(OBJDIR_OMP)/%,$(TOOLOBJ))
+
+openmp: USER_COMPILE_VARS = -fopenmp -DDATE="\"${DATE}\"" -DUSER="\"${USER}\""
+openmp: $(BINDIR_OPT)/$(OMP_EXE)
+
+$(BINDIR_OPT)/$(OMP_EXE): PROG_OPT=$(BINDIR_OPT)/$(OMP_EXE)
+$(BINDIR_OPT)/$(OMP_EXE): OBJECTS_OPT=$(OBJECTS_OMP)
+$(BINDIR_OPT)/$(OMP_EXE): $(USER_LIBS) $(REQ_LIBS_OPT) $(OBJECTS_OMP) | $(BINDIR_OPT)
+	$(OPT_BUILD)
+
+
+$(OBJECTS_OMP): TYPE = OPT
+$(OBJECTS_OMP): $(INCLUDE_PATH)/*h | $(STAT_GEN_LIB_OPT) $(OBJDIR_OMP)
+
+$(OBJDIR_OMP):
+	mkdir -p $@
+$(OBJDIR_OMP)/%.o: %.c
+	$(CCOMPILE)
+$(OBJDIR_OMP)/%.o: %.cpp 
+	$(CXXCOMPILE)
 
 ########################
 # Add any additional targets here.

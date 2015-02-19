@@ -1,7 +1,4 @@
 #include "HaplotypeSet.h"
-#include <algorithm>
-#include <boost/algorithm/string.hpp>
-
 
 void printErr(String filename)
 {
@@ -15,7 +12,8 @@ void printErr(String filename)
 
 
 
-void HaplotypeSet::PrintDosageForVcfOutputForIDMaleSamples(IFILE vcfdose, int MarkerIndex,bool majorIsReference,char refAllele)
+void HaplotypeSet::PrintDosageForVcfOutputForIDMaleSamples(IFILE vcfdose,
+                                                           int MarkerIndex,bool majorIsReference,char refAllele)
 {
 
     bool colonIndex;
@@ -206,7 +204,7 @@ void HaplotypeSet::InitializePartialDosageForVcfOutput(int NHaps,
 }
 
 
-void HaplotypeSet::SaveDosageForVcfOutputSampleWise(int SamID,string &SampleName, vector<double> &dose1,vector<double> &dose2,
+void HaplotypeSet::SaveDosageForVcfOutputSampleWise(int SamID,string &SampleName, vector<float> &dose1,vector<float> &dose2,
                                                     vector<char> &impAlleles1,vector<char> &impAlleles2)
 {
     individualName[SamID]=SampleName;
@@ -216,7 +214,7 @@ void HaplotypeSet::SaveDosageForVcfOutputSampleWise(int SamID,string &SampleName
     ImputedAlleles[2*SamID+1]=impAlleles2;
 }
 
-void HaplotypeSet::SaveDosageForVcfOutputSampleWiseChrX(int SamID,string &SampleName, vector<double> &dose1,
+void HaplotypeSet::SaveDosageForVcfOutputSampleWiseChrX(int SamID,string &SampleName, vector<float> &dose1,
                                                     vector<char> &impAlleles1)
 {
     individualName[SamID]=SampleName;
@@ -225,7 +223,7 @@ void HaplotypeSet::SaveDosageForVcfOutputSampleWiseChrX(int SamID,string &Sample
 }
 
 
-void HaplotypeSet::SaveDosageForVcfOutput(int hapID,vector<double> dose,vector<char> impAlleles)
+void HaplotypeSet::SaveDosageForVcfOutput(int hapID,vector<float> dose,vector<char> impAlleles)
 {
 
     Dosage[hapID]=dose;
@@ -283,14 +281,10 @@ void HaplotypeSet::reconstructHaplotype(vector<char> &reHaplotypes,int &index)
 
 bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,int WINDOW)
 {
-
-    typedef boost::tokenizer< boost::char_separator<char> > wsTokenizer;
-    wsTokenizer::iterator i,j,k,l;
-	boost::char_separator<char> Tabsep("\t"),EqSep("="),semSep(";"),comSep(","),barSep("|"),dashSep("-");
     string line,tempString,tempBlockPos,tempString2,tempString3,tempName,tempChr;
     variant tempVariant;
     variant tempVariant2;
-    int InitialNMarkers=0,blockIndex,startIndexFlag=0,readIndex=0,writeBlockIndex=0,NoBlocks,tempPos,NoMarkersWritten=0,tempVarCount,tempRepCount;
+    int InitialNMarkers=0,blockIndex,startIndexFlag=0,readIndex=0,writeBlockIndex=0,NoBlocks=0,tempPos,NoMarkersWritten=0,tempVarCount,tempRepCount;
 
     cout<<"\n Reading Reference Haplotype information from M3VCF files : "<<m3vcfFile<<endl<<endl;
     int OrigStartPos=START;
@@ -321,7 +315,7 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
     if(m3vcfxStream)
     {
 
-        {
+
         m3vcfxStream->readLine(line);
         if(line.compare("##fileformat=M3VCF")!=0 && line.compare("##fileformat=OPTM")!=0)
         {
@@ -331,6 +325,9 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
         }
 
         bool Header=true;
+//        char * pch_split,* pch_split2,* pch_split3;
+        char * pch;
+        char *end_str1,*end_str2;
 
         while(Header)
         {
@@ -340,36 +337,28 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
                 Header=true;
             else
                 break;
-
-            wsTokenizer t(line,EqSep);
-            i = t.begin();
-            string tempString=i->c_str();
+            tempString = (string) strtok_r ((char*)line.c_str(),"=", &end_str1);
+            pch = strtok_r (NULL, "=", &end_str1);
 
             if(tempString.compare("##n_blocks")==0)
             {
-                ++i;
-                NoBlocks=boost::lexical_cast<int>(i->c_str());
+                NoBlocks=atoi(pch);
                 continue;
-
             }
             else if(tempString.compare("##n_haps")==0)
             {
-                ++i;
-                numHaplotypes=boost::lexical_cast<int>(i->c_str());
+                numHaplotypes=atoi(pch);
                 continue;
-
             }
             else if(tempString.compare("##n_markers")==0)
             {
-                ++i;
-                InitialNMarkers=boost::lexical_cast<int>(i->c_str());
+                InitialNMarkers=atoi(pch);
                 continue;
 
             }
             else if(tempString.compare("##chrxRegion")==0)
             {
-                ++i;
-                tempString=i->c_str();
+                tempString = (string) strtok_r (NULL,"=", &end_str1);
                 if(tempString.compare("NonPseudoAutosomal")==0)
                     PseudoAutosomal=false;
                 else if(tempString.compare("PseudoAutosomal")==0)
@@ -389,18 +378,18 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
         }
 
         int colCount=0;
-        wsTokenizer t4(line,Tabsep);
-        i = t4.begin();
-        while(i!=t4.end())
+        pch = strtok_r ((char*)line.c_str(),"\t", &end_str2);
+
+
+        while(pch!=NULL)
         {
             colCount++;
             if(colCount>9)
             {
-                tempString2=i->c_str();
-//                if(colCount%2==0)
+                tempString2=string(pch);
                 individualName.push_back(tempString2.substr(0,tempString2.size()-6));
             }
-            ++i;
+            pch = strtok_r (NULL,"\t", &end_str2);
         }
 
         cout<<" Reading  "<<numHaplotypes<< " haplotypes from data ..."<<endl<<endl;
@@ -420,7 +409,7 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
             return false;
         }
 
-        }
+
 
         for(blockIndex=0;blockIndex<NoBlocks;blockIndex++)
         {
@@ -436,19 +425,22 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
             int flag=0,blockEnterFlag=0,blocktoSave=0;
             line.clear();
             m3vcfxStream->readLine(line);
-            wsTokenizer t5(line,Tabsep);
-            i = t5.begin();
-            tempChr=i->c_str();
-            ++i;
-            tempBlockPos=i->c_str();
-            wsTokenizer t10(tempBlockPos,dashSep);
-            k=t10.begin();
-            int tempStartBlock=boost::lexical_cast<int>(k->c_str());
-            ++k;
-            int tempEndBlock=boost::lexical_cast<int>(k->c_str());
+            char *end_str_new;
 
-            if(tempStartBlock)
+            pch = strtok_r ((char*)line.c_str(),"\t", &end_str_new);
+            tempChr=string(pch);
 
+            pch = strtok_r (NULL,"\t", &end_str_new);
+            tempBlockPos=string(pch);
+
+            char *end_str_new1;
+            char *pch1;
+
+            pch1 = strtok_r ((char*)tempBlockPos.c_str(),"-", &end_str_new1);
+            int tempStartBlock=atoi(pch1);
+
+            pch1 = strtok_r (NULL,"-", &end_str_new1);
+            int tempEndBlock=atoi(pch1);
 
             if(CHR!="")
             {
@@ -467,42 +459,46 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
             }
 
 
+            pch = strtok_r (NULL,"\t", &end_str_new);
+            string blockName=string(pch);
 
+            pch = strtok_r (NULL,"\t", &end_str_new);
+            pch = strtok_r (NULL,"\t", &end_str_new);
+            pch = strtok_r (NULL,"\t", &end_str_new);
+            pch = strtok_r (NULL,"\t", &end_str_new);
 
+            pch = strtok_r (NULL,"\t", &end_str_new);
+            tempString2=string(pch);
 
-            ++i;
-            string blockName=i->c_str();
+            char *pch2,*end_str_new2;
+            pch2 = strtok_r ((char*)tempString2.c_str(),";", &end_str_new2);
 
-            ++i;
-            ++i;
-            ++i;
-            ++i;
-            ++i;
-            tempString2=i->c_str();
+            stringstream strs;
+            strs<<(blockIndex+1);
 
+            tempString3="B"+ (string)(strs.str());
 
-            wsTokenizer t6(tempString2,semSep);
-
-            j=t6.begin();
-            tempString3="B"+ boost::lexical_cast<std::string>(blockIndex+1);
-            if(tempString3.compare(j->c_str())!=0)
+            if(tempString3.compare((string)pch2)!=0)
             {
                 cout<<endl<<" Error in INFO column (Block Identifier) for block : "<<blockName <<endl;
-                cout<<" Block Identifier should be : "<< tempString3<<" but is : "<<j->c_str()<<endl<<endl;
+                cout<<" Block Identifier should be : "<< tempString3<<" but is : "<<pch2<<endl<<endl;
                 printErr(m3vcfFile);
             }
 
 
-            tempString3=(++j)->c_str();
-            wsTokenizer t7(tempString3,EqSep);
-            k=t7.begin();
-            ++k;
-            tempVarCount=boost::lexical_cast<int>(k->c_str());
-            tempString3=(++j)->c_str();
-            wsTokenizer t8(tempString3,EqSep);
-            k=t8.begin();
-            ++k;
-            tempRepCount=boost::lexical_cast<int>(k->c_str());
+
+            tempString3 = (string)strtok_r (NULL,";", &end_str_new2);
+            char *pch3,*end_str_new3;
+            pch3 = strtok_r ((char*)tempString3.c_str(),"=", &end_str_new3);
+            pch3 = strtok_r (NULL,"=", &end_str_new3);
+            tempVarCount=atoi(pch3);
+
+            tempString3 = (string)strtok_r (NULL,";", &end_str_new2);
+            end_str_new3=NULL;
+            pch3 = strtok_r ((char*)tempString3.c_str(),"=", &end_str_new3);
+            pch3 = strtok_r (NULL,"=", &end_str_new3);
+            tempRepCount=atoi(pch3);
+
             ReducedHaplotypeInfo tempBlock;
 
             if(flag==1)
@@ -517,18 +513,20 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
             tempBlock.uniqueHaps.resize(tempRepCount);
             tempBlock.uniqueIndexMap.resize(numHaplotypes);
 
+            pch = strtok_r (NULL,"\t", &end_str_new);
+            pch = strtok_r (NULL,"\t", &end_str_new);
 
-            ++i;
-            ++i;
+
+
             int check=0;
-            while(i!=t5.end())
+            while(pch!=NULL)
             {
-                int tempval=boost::lexical_cast<int>(i->c_str());
+                int tempval=atoi(pch);
                 tempBlock.uniqueIndexMap[check]=tempval;
                 tempBlock.uniqueCardinality[tempval]++;
 
-               check++;
-                ++i;
+                check++;
+                pch = strtok_r (NULL,"\t", &end_str_new);
             }
 
 
@@ -544,27 +542,23 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
 
             for(int tempIndex=0;tempIndex<tempVarCount;tempIndex++)
             {
-                //cout<<numMarkers<<VariantList.size()<<refAlleleList.size()<<markerName.size()<<endl;
                 flag=0;
                 line.clear();
                 m3vcfxStream->readLine(line);
 
-//                 cout<<line<<endl;
-//                 line.clear();
-//
-//               optmxStream->readTilTab(line);
-//
-//                cout<<line<<endl;
+                end_str_new3=NULL;
 
-//                if(flag==1)
-//                    continue;
-                wsTokenizer t9(line,Tabsep);
-                l=t9.begin();
-                tempChr=l->c_str();
-                tempPos=boost::lexical_cast<int>((++l)->c_str());
-                tempName=((++l)->c_str());
 
-                 if(CHR!="")
+                pch3 = strtok_r ((char*)line.c_str(),"\t", &end_str_new3);
+                tempChr=(string)pch3;
+
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+                tempPos=atoi(pch3);
+
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+                tempName=(string)(pch3);
+
+                if(CHR!="")
                 {
                     if(tempChr.compare(CHR.c_str())!=0)
                         flag=1;
@@ -613,55 +607,71 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
                 tempVariant.assignValues(tempName,tempChr,tempPos);
                 double tempRecom=-3.0,tempError=0.0;
 
-                string tempString98=((++l)->c_str());
-                string tempString99=((++l)->c_str());
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+                string tempString98=(string)(pch3);
+
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+                string tempString99=(string)(pch3);
+
                 tempVariant.assignRefAlt(tempString98,tempString99);
-                //markerName[tempIndex+NoMarkersWritten]=tempName;
-                ++l;
-                ++l;
-                tempString=((++l)->c_str());
-                wsTokenizer t10(tempString,semSep);
-                k=t10.begin();
-                tempString3="B"+ boost::lexical_cast<std::string>(blockIndex+1)+".M"+ boost::lexical_cast<std::string>(tempIndex+1);
-                if(tempString3.compare(k->c_str())!=0)
+
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+
+                tempString=(string)(pch3);
+
+                char *pch4, *end_str_new4;
+
+                pch4=strtok_r ((char*)tempString.c_str(),";", &end_str_new4);
+                stringstream strs1,strs2;
+                strs1<<(blockIndex+1);
+                strs2<<(tempIndex+1);
+                tempString3="B"+ (string)(strs1.str())+ ".M"+ (string)(strs2.str());
+                if(tempString3.compare((string)pch4)!=0)
                 {
                     cout<<endl<<" Error in INFO column (Block Identifier) for variant : "<<tempName <<endl;
-                    cout<<" Block Identifier should be : "<< tempString3<<" but is : "<<k->c_str()<<endl<<endl;
+                    cout<<" Block Identifier should be : "<< tempString3<<" but is : "<<pch4<<endl<<endl;
                     printErr(m3vcfFile);
                 }
 
-                tempString3=(++k)->c_str();
-                wsTokenizer t11(tempString3,EqSep);
-                j=t11.begin();
-                ++j;
-                tempVariant.refAllele=(char)(boost::lexical_cast<int>(j->c_str()));
 
+                pch4=strtok_r (NULL,";", &end_str_new4);
+                tempString3=(string)(pch4);
 
+                char *pch5, *end_str_new5;
+                pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
+                pch5=strtok_r (NULL,"=", &end_str_new5);
+                tempVariant.refAllele=(char)atoi(pch5);
 
-                tempString3=(++k)->c_str();
-                wsTokenizer t19(tempString3,EqSep);
-                j=t19.begin();
-                ++j;
-                tempVariant.altAllele=(char)(boost::lexical_cast<int>(j->c_str()));
+                pch4=strtok_r (NULL,";", &end_str_new4);
+                tempString3=(string)(pch4);
 
+                end_str_new5=NULL;
+                pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
+                pch5=strtok_r (NULL,"=", &end_str_new5);
+                tempVariant.altAllele=(char)atoi(pch5);
 
-                if((++k)!=t10.end())
+                pch4=strtok_r (NULL,";", &end_str_new4);
+                if(pch4!=NULL)
                 {
+                    tempString3=(string)(pch4);
 
-                    tempString3=(k)->c_str();
-                    wsTokenizer t20(tempString3,EqSep);
-                    j=t20.begin();
-                    ++j;
-                    tempError=(boost::lexical_cast<double>(j->c_str()));
+                    end_str_new5=NULL;
+                    pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
+                    pch5=strtok_r (NULL,"=", &end_str_new5);
+                    tempError=atof(pch5);
 
-                    if((++k)!=t10.end())
+                    pch4=strtok_r (NULL,";", &end_str_new4);
+                    if(pch4!=NULL)
                     {
-                        tempString3=(k)->c_str();
-                        wsTokenizer t24(tempString3,EqSep);
-                        j=t24.begin();
-                        ++j;
-                        tempRecom=(boost::lexical_cast<double>(j->c_str()));
+                        tempString3=(string)(pch4);
+                        end_str_new5=NULL;
+                        pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
+                        pch5=strtok_r (NULL,"=", &end_str_new5);
+                        tempRecom=atof(pch5);
                     }
+
                 }
 
 
@@ -679,7 +689,9 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
                     writeBlockIndex++;
                 }
 
-                tempString=((++l)->c_str());
+                pch3 = strtok_r (NULL,"\t", &end_str_new3);
+                tempString=(string)(pch3);
+
                 for(check=0;check<tempRepCount;check++)
                 {
 
@@ -696,9 +708,6 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
             NoMarkersWritten+=(tempVarCount-1);
             if(blocktoSave==1)
                 {
-//
-//            if((tempBlock.endIndex-tempBlock.startIndex+1)!=tempBlock.uniqueHaps[0].size())
-//                abort();
                 optEndPoints.push_back(tempBlock.startIndex);
 
                 ReducedStructureInfo.push_back(tempBlock);
@@ -884,9 +893,6 @@ void HaplotypeSet::writem3vcfFile(String &filename,bool &gzip)
 string HaplotypeSet::DetectTargetFileType(String filename)
 {
     cout<<"\n Detecting Target File Type ... "<<endl;
-    typedef boost::tokenizer< boost::char_separator<char> > wsTokenizer;
-    wsTokenizer::iterator i;
-	boost::char_separator<char> Sep(" \t");
     IFILE fileStream = ifopen(filename, "r");
 
     string line;
@@ -895,27 +901,22 @@ string HaplotypeSet::DetectTargetFileType(String filename)
         fileStream->readLine(line);
         if(line.length()<1)
             return "Invalid";
-        string temp=line.substr(0,17);
-        boost::to_lower(temp);
-         if(temp.compare("##fileformat=vcfv")==0)
+        string tempString;
+        tempString=(line.substr(0,17));
+
+        char temp[tempString.length() + 1];
+        std::strcpy(temp,tempString.c_str());
+        for (char *iter = temp; *iter != '\0'; ++iter)
+        {
+           *iter = std::tolower(*iter);
+        }
+
+        if(((string)temp).compare("##fileformat=vcfv")==0)
             {
                 return "vcf";
             }
-        wsTokenizer t(line,Sep);
-        i = t.begin();
-        if(++i!=t.end())
-        {
+       return "Invalid";
 
-            string haplo1="HAPLO1";
-            if(haplo1.compare(i->c_str())==0)
-            {
-                return "mach";
-            }
-            else
-                return "Invalid";
-        }
-        else
-            return "Invalid";
     }
     else
     {
@@ -923,6 +924,8 @@ string HaplotypeSet::DetectTargetFileType(String filename)
     }
 
     ifclose(fileStream);
+
+    return "NA";
 
 }
 
@@ -935,13 +938,20 @@ string HaplotypeSet::DetectReferenceFileType(String filename)
         fileStream->readLine(line);
         if(line.length()<1)
             return "Invalid";
-        string temp=line.substr(0,17);
-        boost::to_lower(temp);
-        if(temp.compare("##fileformat=m3vc")==0)
+        string tempString;
+        tempString=(line.substr(0,17));
+
+        char temp[tempString.length() + 1];
+        std::strcpy(temp,tempString.c_str());
+        for (char *iter = temp; *iter != '\0'; ++iter)
+        {
+           *iter = std::tolower(*iter);
+        }
+        if(((string)temp).compare("##fileformat=m3vc")==0)
         {
             return "m3vcf";
         }
-        else if(temp.compare("##fileformat=vcfv")==0)
+        else if(((string)temp).compare("##fileformat=vcfv")==0)
         {
             return "vcf";
         }
@@ -954,8 +964,9 @@ string HaplotypeSet::DetectReferenceFileType(String filename)
         return "NA";
     }
 
-
     ifclose(fileStream);
+
+    return "NA";
 }
 
 bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMarker,String CHR,
@@ -1019,10 +1030,15 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
 
         END += WINDOW;
     }
+    stringstream strs;
+    strs<<(END);
+
     if(CHR!="")
     {
-        std::cout << "\n Region specified by user (including window = "<<WINDOW <<" bp) : chr" << CHR<<":"<<START <<"-"<< (END > 0 ? boost::lexical_cast<string>(END) :"END") << endl;
+        std::cout << "\n Region specified by user (including window = "<<WINDOW <<" bp) : chr" << CHR
+        <<":"<<START <<"-"<< (END > 0 ? (string)(strs.str()) :"END") << endl;
     }
+
 
 
     PrintStartIndex=0;
@@ -1106,10 +1122,16 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
         fixCno=cno;
 
         string currID;
+
+        stringstream strs1,strs2;
+        strs1<<(cno);
+        strs2<<(bp);
+
+
         if(rsid)
             currID=record.getIDStr();
         else
-            currID=boost::lexical_cast<string>(cno)+":"+boost::lexical_cast<string>(bp);
+            currID=(string)strs1.str()+":"+(string)strs2.str();
 
         //cout<<prevID<<endl;
         if (strlen(refAllele.c_str()) == 1 && strlen(altAllele.c_str()) == 1)
@@ -1167,13 +1189,19 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
 			deletions++;
         }
 
+        stringstream strs3,strs4;
+        strs3<<(cno);
+        strs4<<(bp);
 
         if(prevID==currID)
         {
             if(refAllele==PrefrefAllele && altAllele==PrevaltAllele)
             {
 
-                cout << " WARNING !!! Duplicate Variant found chr:"<<boost::lexical_cast<string>(cno)+":"+boost::lexical_cast<string>(bp)<<" with identical REF = "<<refAllele
+                cout << " WARNING !!! Duplicate Variant found chr:"
+                <<(string)strs3.str()+":"+
+                (string)strs4.str()<<" with identical REF = "
+                <<refAllele
                  <<" and ALT = "<<altAllele <<"\n";
                 duplicates++;
             }
@@ -1334,6 +1362,8 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
     vector<vector<int> > bestIndex(bufferSize+1);
 
     findUnique RefUnique;
+
+    RefUnique.updateCoeffs(transFactor,cisFactor);
     vector<String> Haplotypes(numHaplotypes);
     double blockedCost = 0.0;
     for(int i=0;i<numHaplotypes;i++)
@@ -1625,10 +1655,18 @@ bool HaplotypeSet::BasicCheckForTargetHaplotypes(String filename)
             return false;
         }
 
-        string temp=line.substr(0,17);
-        boost::to_lower(temp);
+        string tempString;
+        tempString=(line.substr(0,17));
 
-        if(temp.compare("##fileformat=vcfv")!=0)
+        char temp[tempString.length() + 1];
+        std::strcpy(temp,tempString.c_str());
+        for (char *iter = temp; *iter != '\0'; ++iter)
+        {
+           *iter = std::tolower(*iter);
+        }
+
+
+        if(((string)temp).compare("##fileformat=vcfv")!=0)
         {
             cout << "\n Target File provided by \"--haps\" must be a VCF file !!! \n";
             cout << " Please check the following file : "<<filename<<endl<<endl;
@@ -1682,7 +1720,12 @@ bool HaplotypeSet::BasicCheckForTargetHaplotypes(String filename)
 			failFilter++;
 			flag = 1;
 		}
-        currID=boost::lexical_cast<string>(cno)+":"+boost::lexical_cast<string>(bp);
+
+        stringstream strs3,strs4;
+        strs3<<(cno);
+        strs4<<(bp);
+
+        currID=(string)strs3.str()+":"+(string)strs4.str();
 
 
         if(!CheckValidChrom(cno))
@@ -1743,7 +1786,7 @@ bool HaplotypeSet::BasicCheckForTargetHaplotypes(String filename)
             if(refAllele==PrefrefAllele && altAllele==PrevaltAllele)
             {
                 duplicates++;
-                cout << "\n Error !!! Duplicate Variant found chr:"<<boost::lexical_cast<string>(cno)+":"+boost::lexical_cast<string>(bp)<<" with identical REF = "<<refAllele <<" and ALT = "<<altAllele <<"\n";
+                cout << "\n Error !!! Duplicate Variant found chr:"<<cno<<":"<<bp<<" with identical REF = "<<refAllele <<" and ALT = "<<altAllele <<"\n";
                 cout << " Program Aborting ... "<<endl;
                 return false;
             }
@@ -1835,12 +1878,7 @@ bool HaplotypeSet::LoadTargetHaplotypes(String filename, String targetSnpfile, v
 {
 	string FileType=DetectTargetFileType(filename);
 
-    if(FileType.compare("mach")==0)
-    {
-        cout<<"\n Format = MaCH (MArkov Chain based Haplotyper) "<<endl;
-        return LoadMachHaplotypes(filename, targetSnpfile, refSnpList);
-    }
-    else if(FileType.compare("vcf")==0)
+    if(FileType.compare("vcf")==0)
     {
         cout<<"\n Format = VCF (Variant Call Format) "<<endl;
         return LoadVcfTargetHaplotypes(filename, targetSnpfile, refSnpList,rHap);
@@ -1906,10 +1944,15 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 			failFilter++;
 			flag = 0;
 		}
+        stringstream strs3,strs4;
+        strs3<<(cno);
+        strs4<<(bp);
+
+
         if(rsid)
             currID=record.getIDStr();
         else
-            currID=boost::lexical_cast<string>(cno)+":"+boost::lexical_cast<string>(bp);
+            currID=(string)strs3.str()+":"+(string)strs4.str();
 
         if (strlen(refAllele.c_str()) == 1 && strlen(altAllele.c_str()) == 1)
         {
@@ -2296,14 +2339,6 @@ void HaplotypeSet::calculateFreq()
 	major.resize(numMarkers, 0);
 	minor.resize(numMarkers, 0);
 
-//    for(k=0;k<(int)ReducedStructureInfo.size();k++)
-//    {
-//        for (i = 0; i<(int)ReducedStructureInfo[k].uniqueCardinality.size(); i++)
-//            cout<<ReducedStructureInfo[k].uniqueCardinality[i]<<" ";
-//        cout<<endl;
-//    }
-
-
 	for (int i = 0; i<numMarkers; i++)
 	{
 		double max_freq = 0.0;
@@ -2323,7 +2358,6 @@ void HaplotypeSet::calculateFreq()
                 minor[i]=VariantList[i].altAllele;
                 VariantList[i].MinAlleleString=VariantList[i].altAlleleString;
                 VariantList[i].MajAlleleString=VariantList[i].refAlleleString;
-
             }
 
         else
@@ -2382,170 +2416,6 @@ bool HaplotypeSet::LoadSnpList(String filename)
 	ifclose(ifs);
 	return true;
 
-}
-
-
-bool HaplotypeSet::LoadMachHaplotypes(String filename, String targetSnpfile, vector<string> &refSnpList)
-{
-	typedef boost::tokenizer< boost::char_separator<char> > wsTokenizer;
-
-	std::cout << "\n Loading Target Haplotype Set from MaCH File         : " << filename << endl;
-
-
-	if(!LoadSnpList(targetSnpfile))
-        return false;
-
-	vector<int> knownPosition;
-	int counter = 0;
-
-	missing.resize(refSnpList.size(), true);
-
-	vector<string> newMarkerName;
-    ScaffoldIndex.resize(refSnpList.size(), -1);
-    int markerIndex=0;
-	for (int j = 0; j<(int)markerName.size(); j++)
-	{
-		int prevCounter = counter;
-		while (counter<(int)refSnpList.size() && refSnpList[counter].compare(markerName[j]) != 0)
-		{
-			counter++;
-		}
-		if (counter == (int)refSnpList.size())
-		{
-			knownPosition.push_back(-1);
-			counter = prevCounter;
-		}
-		else
-		{
-			knownPosition.push_back(counter);
-			newMarkerName.push_back(markerName[j]);
-			missing[counter] = false;
-			ScaffoldIndex[counter]=markerIndex++;
-
-		}
-	}
-
-	std::cout << "\n Number of Markers in Data                           : " << markerName.size() << endl;
-	std::cout << " Number of Markers overlapping with Reference List   : " << newMarkerName.size() << endl << endl;
-
-	if (newMarkerName.size() == 0)
-	{
-
-		cout << "\n No overlap between Target and Reference markers !!!\n";
-		cout << " Please check for consistent marker identifer in reference and target input files..\n";
-		cout << " Program Aborting ... \n";
-		return false;
-
-	}
-
-	markerName = newMarkerName;
-
-	int n = 0;
-
-	IFILE ifs = ifopen(filename, "r");
-
-
-	string line;
-	if(ifs)
-    {
-        while ((ifs->readLine(line))!=-1)
-        {
-            n++;
-            boost::char_separator<char> sep(" \t");
-            wsTokenizer t(line, sep);
-            wsTokenizer::iterator i;
-            int col = 0;
-
-            for (i = t.begin(); i != t.end(); ++i)
-            {
-                col++;
-
-                if (col == 1)
-                {
-
-                    string tempInd;
-
-                    tempInd = i->c_str();
-                    if ((n-1) % 2 == 0)
-                    {
-                        individualName.push_back(tempInd);
-                    }
-                }
-                if (col == 3)
-                {
-                    string tempHap;
-                    tempHap = i->c_str();
-                    //vector<char> tempSnp(refSnpList.size(), 0);
-                    //cout<<line<<endl;
-
-                    vector<char> tempSnp2(markerName.size(), 0);
-                    int index=0;
-                    for (int j = 0; j<(int)knownPosition.size() ;  j++)
-                    {
-                        if (knownPosition[j] != -1)
-                        {
-                            char allele=0;
-                            switch (tempHap[j])
-                            {
-                            case 'A': case 'a': case '1': allele = 1; break;
-                            case 'C': case 'c': case '2': allele = 2; break;
-                            case 'G': case 'g': case '3': allele = 3; break;
-                            case 'T': case 't': case '4': allele = 4; break;
-                            case 'D': case 'd': case '5': allele = 5; break;
-                            case 'I': case 'i': case '6': allele = 6; break;
-                            case 'R': case 'r': case '7': allele = 7; break;
-                            default:
-                                if (!allowMissing)
-                                {
-
-                                    cout << " Error: Haplotypes can only contain alleles A ('A', 'a' or '1'),\n";
-                                    cout << " C ('C', 'c' or 2), G ('G', 'g' or 3), T ('T', 't' or '4'),\n";
-                                    cout << " D ('D', 'd' or 5), I ('I', 'i' or 6) and R ('R', 'r' or 7).\n";
-                                    cout << "\n\n For Individual : " << individualName.back() << ", Haplotype #";
-                                    cout << (n-1) % 2 +1 << " has allele \"" << tempHap[j] << "\" at position : ";
-                                    cout << j + 1 << " in MaCH input file <" << filename << ">" << endl;
-
-
-                                    return false;
-                                }
-                            }
-
-                            tempSnp2[index++] = allele;
-                            //tempSnp[knownPosition[j]] = allele;
-                        }
-
-
-                    }
-                haplotypesUnscaffolded.push_back(tempSnp2);
-                    //haplotypes.push_back(tempSnp);
-			}
-            }
-            line.clear();
-        }
-    }
-    else
-    {
-        cout<<"\n\n Following File File Not Available : "<<filename<<endl;
-        return false;
-    }
-
-	std::cout << " Number of Markers Recorded                          : " << markerName.size() << endl;
-	std::cout << " Number of Haplotypes Recorded                       : " << (haplotypesUnscaffolded.size()) << "\n";
-    numHaplotypes = haplotypesUnscaffolded.size();
-    numMarkers = markerName.size();
-
-
-    if(haplotypesUnscaffolded.size()==0)
-    {
-        cout << "\n No haplotypes recorded from MaCH Input File : "<<filename<<endl;
-		cout << " Please check the file properly..\n";
-		cout << " Program Aborting ... "<<endl;
-		return false;
-    }
-	std::cout << "\n Haplotype Set successfully loaded from MaCH File    : " << filename << endl;
-	ifclose(ifs);
-
-	return true;
 }
 
 
@@ -2625,10 +2495,4 @@ char HaplotypeSet::convertAlleles(string markerId, string indivId, const char *a
 
 
 }
-
-
-
-
-
-
 
