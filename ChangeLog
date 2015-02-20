@@ -145,3 +145,17 @@ Date    : January 31, 2015
         Fixed minor bugs and made thigsn ready for final release !!!
 
 --------------------------------------------------------------------------
+
+Version : 1.0.8, 1.0.9
+Author  : Sayantan Das
+Date    : February 20, 2015
+
+        Removed dependcies on boost directory. Converted all double to fl-
+        oat. Had to change the main imputation formula to work well for l-
+        arge values. Also updated Rsq calulation formual to avoid underfl-
+        as a result of using float. Made minor changes to memory allocati-
+        on so as to remove all 2-d or 3-d look-ups. Updated a loop to rem-
+        ove repeat allocation, similar to minimac2. Now it is faster and 
+        uses much lesser memory.
+
+--------------------------------------------------------------------------
