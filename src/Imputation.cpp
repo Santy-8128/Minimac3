@@ -279,7 +279,7 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
 
 
 
-    printf("\n Saving estimated parameters for future use/reference ...");
+    printf("\n Saving estimated parameters for future use/reference to ...");
     cout<<endl;
     MP->WriteParameters(rHap.markerName, outFile, false);
     int time_load = time(0) - time_prev;
@@ -419,29 +419,6 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
     vector<int> optStructure=rHap.optEndPoints;
 
     int time_prev = time(0),time_load,vcfSampleIndex=0;;
-
-    HaplotypeSet goldenPanel;
-    if(Golden!="")
-    {
-
-        String tempfilename="";
-        cout<<" ------------------------------------------------------------------------------"<<endl;
-        cout<<"                  GOLDEN/TRUE HAPLOTYPE PANEL (for Target Panel)               "<<endl;
-        cout<<" ------------------------------------------------------------------------------"<<endl;
-
-
-        if (!goldenPanel.LoadVcfTargetHaplotypes(Golden, tempfilename, rHap.markerName, rHap))
-        {
-            cout << "\n Program Exiting ... \n\n";
-            abort();
-        }
-        time_load = time(0) - time_prev;
-        cout << "\n Time taken to load golden haplotype set = " << time_load << " seconds."<<endl<<endl;
-
-
-    }
-
-
     includeGwas=true;
     MarkovParameters* MP=createEstimates(rHap,tHap,rHap.optEndPoints,1-includeGwas);
 
@@ -451,9 +428,7 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
 
 
     ImputationStatistics stats(rHap.numMarkers );
-    ImputationStatistics Goldenstats( rHap.numMarkers );
-    ImputationStatistics GoldenstatsGeno( rHap.numMarkers );
-    IFILE dosages=NULL, hapdose=NULL, haps=NULL,goldenRsq =NULL,vcfdosepartial=NULL;
+    IFILE dosages=NULL, hapdose=NULL, haps=NULL,vcfdosepartial=NULL;
     HaplotypeSet DosageForVcf;
     HaplotypeSet DosageForVcfPartial;
 
@@ -533,7 +508,7 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         }
 
         vector<float> foldedProb,recomProb,noRecomProb, rightProb,probAlleleNoStandardize(8,0.0),tempDoseHap1;
-        vector<char> tempHap(rHap.numMarkers),tempDoseAlleleHap1,tempGoldenHapCurrent(rHap.numMarkers),tempGoldenHap1(rHap.numMarkers);
+        vector<char> tempHap(rHap.numMarkers),tempDoseAlleleHap1;
 
         MarkovModel MM(tHap,rHap,tHap.missing,rHap.major);
 
@@ -589,18 +564,6 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
             for(int jjj=0;jjj<rHap.numMarkers;jjj++)
                 tempHap[jjj]=tHap.getScaffoldedHaplotype(hapIdIndiv,jjj);
 
-            if(Golden!="")
-            {
-                for(int jjj=0;jjj<rHap.numMarkers;jjj++)
-                    tempGoldenHapCurrent[jjj]=goldenPanel.getScaffoldedHaplotype(hapIdIndiv,jjj);
-
-                if(hapIdIndiv%2==0)
-                    for(int jjj=0;jjj<rHap.numMarkers;jjj++)
-                        tempGoldenHap1[jjj]=goldenPanel.getScaffoldedHaplotype(hapIdIndiv,jjj);
-
-                 Goldenstats.GoldenUpdate(MM.imputedHap, MM.leaveOneOut,tempGoldenHapCurrent,rHap.major);
-            }
-
             if(vcfOutput)
             {
                 if(hapIdIndiv%2==0)
@@ -609,9 +572,6 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
                    tempDoseAlleleHap1= MM.imputedAlleleNumber;
                 }
             }
-
-
-
             #pragma omp critical
             {
                 stats.Update(MM.imputedHap, MM.leaveOneOut,tempHap,rHap.major);
@@ -641,10 +601,6 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
                 break;
             hapIdIndiv++;
         }while(hapIdIndiv<MaxSample && hapIdIndiv%2==1);
-
-        if(Golden!="")
-        GoldenstatsGeno.GoldenUpdate2(MM.imputedDose, tempGoldenHap1,tempGoldenHapCurrent,rHap.major);
-
 
         #pragma omp critical
         if(doseOutput)
@@ -721,9 +677,9 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         ifclose(hapdose);
         ifclose(haps);
 
-        cout<<endl<<" Haplotype Dosage information written to "<<
+        cout<<endl<<" Haplotype Dosage information written to : "<<
             outFile + ".hapDose" + (gzip ? ".gz" : "")<<endl;
-        cout<<endl<<" Haplotype Allele information written to "<<
+        cout<<endl<<" Haplotype Allele information written to : "<<
         outFile + ".hapLabel" + (gzip ? ".gz" : "")<<endl;
     }
 
@@ -732,7 +688,7 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
     if(doseOutput)
     {
         ifclose(dosages);
-        cout<<endl<<" Dosage information written to "<<
+        cout<<endl<<" Dosage information written to           : "<<
         outFile + ".dose" + (gzip ? ".gz" : "")<<endl;
     }
 
@@ -741,15 +697,6 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
     IFILE info = ifopen(outFile + ".info", "wb");
 
     ifprintf(info, "SNP\tREF\tALT\tMajor\tMinor\tMAF\tAvgCall\tRsq\tGenotyped\tLooRsq\tEmpR\tEmpRsq\tDose1\tDose2\n");
-    if(Golden!="")
-    {
-        goldenRsq= ifopen(outFile + ".golden.Rsq" , "wb");
-        ifprintf(goldenRsq, "SNP\tAl1\tAl2\t\tRefMAF\tTarMAF\t\tHapRsq\tCount\t\tGenoRsq\tCount\tGenotyped\n");
-    }
-
-
-
-
     for (int i = rHap.PrintStartIndex; i <= rHap.PrintEndIndex; i++)
     {
 
@@ -763,21 +710,6 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
             stats.AverageCallScore(i),
             stats.Rsq(i));
 
-
-
-        if(Golden!="")
-            if (!goldenPanel.missing[i])
-                ifprintf(goldenRsq, "%s\t%s\t%s\t\t%.5f\t%.5f\t\t%.3f\t%d\t\t%.5f\t%d\t%s\n",
-                                    rHap.VariantList[i].name.c_str(),
-                                    rHap.VariantList[i].MajAlleleString.c_str(),
-                                    rHap.VariantList[i].MinAlleleString.c_str(),
-                                    rHap.alleleFreq[rHap.minor[i]][i],
-                                    Goldenstats.TargetPanelFreq[i],
-                                    Goldenstats.GoldenRsq(i),
-                                    Goldenstats.looCount[i],
-                                    GoldenstatsGeno.GoldenRsqgeno(i),
-                                    GoldenstatsGeno.looCount[i],
-                                    !tHap.missing[i]?"Genotyped":"Masked");
         if (!tHap.missing[i])
         {
             ifprintf(info, "Genotyped\t%.3f\t%.3f\t%.5f\t%.5f\t%.5f\n",
@@ -786,15 +718,10 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         }
         else
          ifprintf(info, "-\t-\t-\t-\t-\t-\n");
-
     }
-
     ifclose(info);
-    if(Golden!="")
-        ifclose(goldenRsq);
 
-
-    cout<<endl<<" Summary information written to "<<outFile<<".info"<<endl;
+    cout<<endl<<" Summary information written to          : "<<outFile<<".info"<<endl;
     time_load = time(0) - time_prev;
     cout << "\n Time taken for imputation = " << time_load << " seconds."<<endl<<endl;
 
@@ -855,12 +782,10 @@ void Imputation::Condition(HaplotypeSet &rHap, int markerPos,vector<float> &Prob
     {
 
         char allele=Info.returnHapAtPosition(i,markerPos);
-        //cout<<" ALLELE = "<<(int)allele<<endl;
         Prob[i]*=P[(int)allele];
         noRecomProb[i]*=P[(int)allele];
     }
 }
-
 
 
 

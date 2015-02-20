@@ -892,7 +892,6 @@ void HaplotypeSet::writem3vcfFile(String &filename,bool &gzip)
 
 string HaplotypeSet::DetectTargetFileType(String filename)
 {
-    cout<<"\n Detecting Target File Type ... "<<endl;
     IFILE fileStream = ifopen(filename, "r");
 
     string line;
@@ -973,7 +972,6 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
                                       int START,int END,int WINDOW,bool rsid,bool compressOnly,bool filter)
 {
 
-    cout<<"\n Detecting Reference File Type ... "<<endl;
 
     string FileType=DetectReferenceFileType(filename);
 
@@ -1269,7 +1267,7 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
 
 
 	std::cout << "\n Number of Markers read from VCF File                : " << numReadRecords << endl;
-	std::cout << " Number of Markers with more than One Allele         : " << notBiallelic << endl;
+	std::cout << " Number of Markers with more than Two Alleles        : " << notBiallelic << endl;
 	std::cout << " Number of Markers failing FILTER = PASS             : " << failFilter << endl;
     std::cout << " Number of Markers with inconsistent Ref/Alt Allele  : " << inconsistent << endl;
     std::cout << " Number of Markers with duplicate ID/Position        : " << duplicates << endl;
@@ -1651,7 +1649,7 @@ bool HaplotypeSet::BasicCheckForTargetHaplotypes(String filename)
         if(line.length()<1)
         {
             cout << "\n Target File provided by \"--haps\" must be a VCF file !!! \n";
-            cout << " Please check the following file : "<<filename<<endl<<endl;
+            cout << " Please check the following file : "<<filename<<endl;
             return false;
         }
 
@@ -1679,6 +1677,8 @@ bool HaplotypeSet::BasicCheckForTargetHaplotypes(String filename)
 
     std::cout << " VCF File Type Detected ..." << endl;
 
+    std::cout <<"\n NOTE: Samples will be assumed to be phased irrespective "<<endl;
+    cout<<       "       of GT delimiter (| or /) in VCF file !!! " << endl;
 
 
     std::cout << "\n Checking variant information ..." << endl;
@@ -1687,6 +1687,8 @@ bool HaplotypeSet::BasicCheckForTargetHaplotypes(String filename)
     int failFilter=0,duplicates=0,notBiallelic=0,inconsistent=0;
     string prevID,currID, refAllele,altAllele,PrefrefAllele,PrevaltAllele,cno,fixCno,id;
     inFile.open(filename, header);
+
+
 
     while (inFile.readRecord(record))
     {
@@ -1804,6 +1806,7 @@ bool HaplotypeSet::BasicCheckForTargetHaplotypes(String filename)
         numActualRecords++;
 
     }
+
 
 
 	std::cout << " "<<numActualRecords<<" variants in file with "<<numReadRecords<<" variants passing filters ..."<<endl<<endl;

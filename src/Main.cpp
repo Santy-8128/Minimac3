@@ -1,6 +1,5 @@
 
 
-
 #include <iostream>
 #include <ctime>
 #include <stdio.h>
@@ -106,13 +105,7 @@ int main(int argc, char ** argv)
     if(nobgzip)
         gzip=false;
 
-
-    if (rsid==true)
-    {
-        cout << " NOTE : If \"--refHaps\" is an OPTM file, \"--rsid\" parameter provided will be ignored !!! \n";
-        cout << "        Program will read marker information from OPTM file : " <<refHaps<<endl<<endl;
-    }
-
+    cout<<endl<<endl;
 	if (refHaps == "")
 	{
 		cout<< " Missing \"--refHaps\", a required parameter.\n";
@@ -128,7 +121,7 @@ int main(int argc, char ** argv)
 
         cout<<" NOTE: Since \"--processReference\" is ON, all options under \"Target Haplotypes\" \n";
         cout<<"       and \"Starting Parameters\" will be ignored !!!\n";
-        cout<<"       Program will only estimate parameters and create OPTM file.\n";
+        cout<<"       Program will only estimate parameters and create M3VCF file.\n";
         cout<<"       No imputation will be performed, hence other parameters are unnecessary !!!"<<endl<<endl;
 
         cout<<" NOTE: If \"--processReference\" is ON, Parameter Estimation will be done by default ! \n";
@@ -150,7 +143,7 @@ int main(int argc, char ** argv)
     {
 
         cout<<" NOTE: Handle \"--updateModel\" works only on M3VCF files ! \n";
-        cout<<"       Program will crash if \"--refHaps\" is a VCF file !!!\n"<<endl;
+        cout<<"       Program will NOT run if \"--refHaps\" is a VCF file !!!\n"<<endl;
 
         if(rounds<=0)
         {
@@ -312,17 +305,6 @@ int main(int argc, char ** argv)
             return(-1);
         }
 
-        if (snps == "")
-        {
-            cout<<" NOTE : \"--snps\" parameter not provided ! Please verify that \"--haps\" is NOT a MaCH file. \n";
-            cout<<"        Program will crash otherwise !!!"<<endl<<endl;
-        }
-        else
-        {
-            cout << " NOTE : If \"--haps\" is a VCF file, \"--snps\" parameter provided will be ignored !!! \n";
-            cout << "        Program will read marker information from VCF file : " <<haps<<endl<<endl;
-        }
-
         string formatPiece,formatTemp=format.c_str();
         char *end_str1;
 
@@ -355,7 +337,7 @@ int main(int argc, char ** argv)
 	if(!processReference)
     {
         cout<<" ------------------------------------------------------------------------------"<<endl;
-        cout<<"                            PRELIMNARY FILE CHECK                              "<<endl;
+        cout<<"                       PRELIMINARY GWAS/TARGET FILE CHECK                      "<<endl;
         cout<<" ------------------------------------------------------------------------------"<<endl;
 
 
@@ -367,15 +349,43 @@ int main(int argc, char ** argv)
             return(-1);
         }
 
+        cout<<" ------------------------------------------------------------------------------"<<endl;
+        cout<<"                       PRELIMINARY REFERENCE FILE CHECK                        "<<endl;
+        cout<<" ------------------------------------------------------------------------------"<<endl<<endl;
+
+
         std::cout << " Performing basic file check on Reference haplotype file ..." << endl;
 
-        if(reference.DetectReferenceFileType(refHaps).compare("m3vcf")==0)
+        std::cout << "\n Checking File ..." << endl;
+
+        if(reference.DetectReferenceFileType(refHaps).compare("NA")==0)
+        {
+            cout << "\n Program could NOT open file : " << refHaps << endl;
+            cout << "\n Program Exiting ... \n\n";
+            compStatus="Reference.Panel.Load.Error";
+            PhoneHome::completionStatus(compStatus.c_str());
+            return(-1);
+        }
+        std::cout << " File Exists ..." << endl;
+        std::cout << "\n Checking File Format ..." << endl;
+
+        if(reference.DetectReferenceFileType(refHaps).compare("Invalid")==0)
+        {
+            cout << "\n Reference File provided by \"--refHaps\" must be a VCF/M3VCF file !!! \n";
+            cout << " Please check the following file : "<<refHaps<<endl;
+            cout << "\n Program Exiting ... \n\n";
+            compStatus="Reference.Panel.Load.Error";
+            PhoneHome::completionStatus(compStatus.c_str());
+            return(-1);
+        }
+        else if(reference.DetectReferenceFileType(refHaps).compare("m3vcf")==0)
         {
             cout<<"\n Reference File Format = M3VCF (Minimac3 VCF File) "<<endl;
 
-            cout <<"\n NOTE: For M3VCF files, if estimates are available in file \n";
-               cout<<"       \"--updateModel\" must be ON for further parametrization.\n";
-               cout<<"       Else it will use the estimates available in the file.\n";
+            cout <<"\n NOTE: For M3VCF files, if parameter estimates are available in the file, \n";
+               cout<<"       they will be used by default (RECOMMENDED !). If the user has reasons\n";
+               cout<<"       to believe that updating the parameters would increase accuracy, they\n";
+             cout<<"       should use handle \"--updateModel\" (not required in typical GWAS studies).\n";
                cout<<"       If estimates are NOT available in file, it will estimate by default."<<endl;
 
 
@@ -393,14 +403,17 @@ int main(int argc, char ** argv)
                 if(!updateModel)
                 {
                  cout <<"\n NOTE: For M3VCF files, if estimates are available in file \n";
-                    cout<<"       \"--updateModel\" must be ON to use \"--rounds\">0.\n";
-                    cout<<"       Program will ignore value of \"--rounds\" otherwise !!!"<<endl;
+                    cout<<"       value of \"--rounds\" will be ignored unless user has\n";
+                    cout<<"       \"--updateModel\" ON (since, otherwise estimates are\n";
+                    cout<<"       not going to be updated and value of \"--rounds\" would\n";
+                    cout<<"       not make sense) !!!"<<endl;
+
                 }
             }
 
 
         }
-        if(reference.DetectReferenceFileType(refHaps).compare("vcf")==0)
+        else if(reference.DetectReferenceFileType(refHaps).compare("vcf")==0)
         {
             cout<<"\n Reference File Format = VCF (Variant Call Format)"<<endl;
 

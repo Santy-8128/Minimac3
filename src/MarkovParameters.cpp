@@ -162,8 +162,12 @@ empError[noMarker-1] += rhs.empError[noMarker-1];
 void MarkovParameters::WriteParameters(vector<string> &markerNames,String prefix, bool gz)
 {
     String filename=prefix;
-    WriteErrorRates(markerNames, filename + ".erate" + (gz ? ".gz" : ""));
     WriteCrossoverRates(markerNames, filename + ".rec" + (gz ? ".gz" : ""));
+    cout<<"\n Recombination Rates : "<< filename + ".rec" + (gz ? ".gz" : "")<<endl;;
+    WriteErrorRates(markerNames, filename + ".erate" + (gz ? ".gz" : ""));
+    cout<<" Error Rates         : "<< filename + ".erate" + (gz ? ".gz" : "")<<endl;;
+
+
 }
 
 void MarkovParameters::WriteErrorRates(vector<string> & markerNames, const char * filename)
