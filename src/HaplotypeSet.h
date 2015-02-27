@@ -10,6 +10,9 @@
 
 
 using namespace std;
+
+
+
 class HaplotypeSet
 {
 
@@ -31,6 +34,7 @@ class HaplotypeSet
         bool PseudoAutosomal;
         bool AllMaleTarget;
         int transFactor, cisFactor;
+        string MyChromosome;
 
         vector<double>      Recom,Error;
         vector<string> markerName;
@@ -89,13 +93,14 @@ class HaplotypeSet
         void    InitializeDosageForVcfOutput                (int NHaps,int NMarkers);
         void    InitializePartialDosageForVcfOutput         (int NHaps,int NMarkers, vector<bool> &Format);
         void    InitializePartialDosageForVcfOutputMaleSamples    (int NHaps,int NMarkers, vector<bool> &Format);
-        void    PrintDosageForVcfOutputForID    (IFILE vcfdose, int MarkerIndex,bool majorIsReference,char refAllele);
-        void    PrintPartialDosageForVcfOutputForID    (IFILE vcfdose, int MarkerIndex,bool majorIsReference,char refAllele);
-        bool    BasicCheckForTargetHaplotypes   (String filename);
-        string    DetectTargetFileType   (String filename);
-        string    DetectReferenceFileType   (String filename);
-        void    SaveDosageForVcfOutputSampleWiseChrX(int SamID,string &SampleName, vector<float> &dose1,
-                                                    vector<char> &impAlleles1);
+        void    PrintDosageForVcfOutputForID                (IFILE vcfdose, int MarkerIndex,bool majorIsReference,char refAllele);
+        void    PrintPartialDosageForVcfOutputForID         (IFILE vcfdose, int MarkerIndex,bool majorIsReference,char refAllele);
+        bool    BasicCheckForTargetHaplotypes               (String filename);
+        string  DetectTargetFileType                        (String filename);
+        string  DetectReferenceFileType                     (String filename);
+        void    SaveDosageForVcfOutputSampleWiseChrX        (int SamID,string &SampleName, vector<float> &dose1,
+                                                            vector<char> &impAlleles1);
+        bool    CheckValidChrom                             (string chr);
 
         void PrintDosageForVcfOutputForIDMaleSamples(IFILE vcfdose, int MarkerIndex,bool majorIsReference,char refAllele);
 

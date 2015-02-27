@@ -1,8 +1,8 @@
 
 
+#include <stdio.h>
 #include <iostream>
 #include <ctime>
-#include <stdio.h>
 #include "Parameters.h"
 #include "StringBasics.h"
 #include "HaplotypeSet.h"
@@ -11,9 +11,12 @@
 #include "MarkovParameters.h"
 #include "Imputation.h"
 #include "ImputationStatistics.h"
-
+#include <unistd.h>
+#include <fstream>
+#include <ostream>
 int transFactor = 3;
 int cisFactor = 2;
+
 
 using namespace std;
 void Minimac3Version();
@@ -23,7 +26,7 @@ int main(int argc, char ** argv)
 {
 	// Parameter Options
 
-	String refHaps = "";
+    String refHaps = "";
 	String haps = "", snps = "",removeSam="";
 	String outfile = "Minimac3.Output";
 	String format = "GT,DS";
@@ -34,8 +37,10 @@ int main(int argc, char ** argv)
     cpus=5;
     #endif
 
-	bool phased = false,passOnly = false, doseOutput = false, vcfOutput = true, gzip = true, nobgzip = false, rsid=false;
+	bool log = false, phased = false,passOnly = false, doseOutput = false, vcfOutput = true, gzip = true, nobgzip = false, rsid=false;
 	bool processReference=false,updateModel=false, onlyRefMarkers=false, help = false, params = false;
+    String MyChromosome="";
+
 
 	ParameterList inputParameters;
 	PhoneHome::allThinning = 50;
@@ -70,11 +75,13 @@ int main(int argc, char ** argv)
 		LONG_INTPARAMETER("rounds", &rounds)
 		LONG_INTPARAMETER("states", &states)
 		LONG_PARAMETER_GROUP("Other Parameters")
+		LONG_PARAMETER("log", &log)
 		LONG_PARAMETER("help", &help)
 		LONG_INTPARAMETER("cpus", &cpus)
 		LONG_PARAMETER("params", &params)
 		LONG_PHONEHOME(VERSION)
 		BEGIN_LEGACY_PARAMETERS()
+		LONG_STRINGPARAMETER("MyChromosome", &MyChromosome)
 		LONG_PARAMETER("onlyRefMarkers", &onlyRefMarkers)
 //		LONG_INTPARAMETER("transFactor", &transFactor)
 //		LONG_INTPARAMETER("cisFactor", &cisFactor)
@@ -86,10 +93,17 @@ int main(int argc, char ** argv)
 
 
 	inputParameters.Add(new LongParameters(" Command Line Options: ",longParameterList));
-//    PhoneHome::allThinning = 100;
-	Minimac3Version();
+
     String compStatus;
 	inputParameters.Read(argc, &(argv[0]));
+
+    FILE *LogFile=NULL;
+    if(log)
+        LogFile=freopen(outfile+".logfile","w",stdout);
+    dup2(fileno(stdout), fileno(stderr));
+
+
+    Minimac3Version();
 	if (help)
 	{
 		helpFile();
@@ -99,7 +113,7 @@ int main(int argc, char ** argv)
 	inputParameters.Status();
 
     #ifdef _OPENMP
-    omp_set_num_threads(cpus);
+        omp_set_num_threads(cpus);
     #endif
 
     if(nobgzip)
@@ -334,6 +348,9 @@ int main(int argc, char ** argv)
 
     HaplotypeSet target,reference;
 
+    target.MyChromosome=(string)MyChromosome;
+    reference.MyChromosome=(string)MyChromosome;
+
 	if(!processReference)
     {
         cout<<" ------------------------------------------------------------------------------"<<endl;
@@ -354,9 +371,9 @@ int main(int argc, char ** argv)
         cout<<" ------------------------------------------------------------------------------"<<endl<<endl;
 
 
-        std::cout << " Performing basic file check on Reference haplotype file ..." << endl;
+        cout << " Performing basic file check on Reference haplotype file ..." << endl;
 
-        std::cout << "\n Checking File ..." << endl;
+        cout << "\n Checking File ..." << endl;
 
         if(reference.DetectReferenceFileType(refHaps).compare("NA")==0)
         {
@@ -366,8 +383,8 @@ int main(int argc, char ** argv)
             PhoneHome::completionStatus(compStatus.c_str());
             return(-1);
         }
-        std::cout << " File Exists ..." << endl;
-        std::cout << "\n Checking File Format ..." << endl;
+        cout << " File Exists ..." << endl;
+        cout << "\n Checking File Format ..." << endl;
 
         if(reference.DetectReferenceFileType(refHaps).compare("Invalid")==0)
         {
@@ -464,8 +481,6 @@ int main(int argc, char ** argv)
 
 	}
 
-//
-//abort();
 
     cout<<endl;
 	if(processReference)
@@ -482,11 +497,6 @@ int main(int argc, char ** argv)
 
 
     cout << "\n Time taken to load reference haplotype set = " << time_load << " seconds."<<endl<<endl;
-
-
-//    MINIMIZED COST              = " << sum<< endl;
-//    cout<<" FOLD INCREASE IN SPEEED     = "<< (double)rHap.numHaplotypes*(double)rHap.numMarkers /(double)sum<<endl;
-//    cout<<" MAX_BLOCK_LENGTH            = "<< maxmax <<endl;
 
 
 	if(!processReference)
@@ -528,9 +538,6 @@ int main(int argc, char ** argv)
     time_load = time(0) - time_prev;
 	int time_tot = time(0) - start_time;
 
-//	cout << "\n\n Time taken for Imputation = " << time_load << " seconds. \n";
-//
-
     cout << "\n Program Successfully Implemented... \n ";
 
 
@@ -539,6 +546,8 @@ int main(int argc, char ** argv)
 
     cout<<"\n Thank You for using Minimac3 !!! "<<endl<<endl;
 
+    if(log)
+        fclose (LogFile);
 
 
     compStatus="Success";
@@ -585,16 +594,18 @@ printf("\n\n -------------------------------------------------------------------
 	printf("                            Minimac3 - List of Usage Options \n");
 	printf(" -----------------------------------------------------------------------------------------\n\n");
 
-    printf("   <<< Reference Haplotypes >>>\n");
+    printf(" --------- Reference Haplotypes --------- \n");
     printf("\n     --refHaps filename   : VCF file or M3VCF file containing haplotype data for reference panel.\n");
     printf("             --passOnly   : This option only imports variants with FILTER = PASS.\n");
-  printf("\n   <<< GWAS Haplotypes >>>\n");
-   printf("\n        --haps filename   : File containing haplotype data for target (gwas) samples. Must be VCF \n");
+
+
+
+  printf("\n --------- GWAS Haplotypes --------- \n");
+  printf("\n        --haps filename   : File containing haplotype data for target (gwas) samples. Must be VCF \n");
     printf("                            file. Zipped versions allowed.\n");
 
-    printf("\n   <<< Output Parameters >>>\n");
-
-    printf("\n        --prefix output   : Prefix for all output files generated. By default: [Minimac3.Output]\n");
+  printf("\n --------- Output Parameters --------- \n");
+  printf("\n        --prefix output   : Prefix for all output files generated. By default: [Minimac3.Output]\n");
     printf("     --processReference   : This option will only convert an input VCF file to M3VCF format\n");
     printf("                            (maybe for a later run of imputation). If this option is ON, \n");
     printf("                            no imputation would be performed.\n");
@@ -606,16 +617,16 @@ printf("\n\n -------------------------------------------------------------------
     printf("               --format   : Specifies which fields to output for the FORMAT field in output \n");
     printf("                            VCF file. Available handles: GT,DS,GP [Default: GT,DS].\n");
 
-    printf("\n   <<< Subset Parameters >>>\n");
 
 
+  printf("\n --------- Subset Parameters --------- \n");
   printf("\n               --chr 22   : Chromosome number for which we will carry out imputation.\n");
     printf("         --start 100000   : Start position for imputation by chunking.\n");
     printf("           --end 200000   : End position for imputation by chunking. \n");
     printf("         --window 20000   : Length of buffer region on either side of --start and --end.\n");
-   printf("\n   <<< Estimation Parameters >>>\n");
 
 
+  printf("\n --------- Estimation Parameters --------- \n");
   printf("\n             --rounds 5   : Rounds of optimization for model parameters, which describe population \n");
     printf("                            recombination rates and per SNP error rates. By default = 5.\n");
     printf("           --states 200   : Maximum number of reference (or target) haplotypes to be examined  \n");
@@ -623,24 +634,8 @@ printf("\n\n -------------------------------------------------------------------
     printf("               --cpus 5   : Number of cpus for parallel computing. Works only with Minimac3-omp.\n\n");
 
   printf("\n Please visit <http://genome.sph.umich.edu/wiki/Minimac3> for detailed documentation ...\n\n");
-cout<<endl;
+    cout<<endl;
 
-
-//
-//      printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
-//    printf(" ");
 
 
 	return;

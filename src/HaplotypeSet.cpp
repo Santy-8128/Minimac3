@@ -387,12 +387,17 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
             if(colCount>9)
             {
                 tempString2=string(pch);
-                individualName.push_back(tempString2.substr(0,tempString2.size()-6));
+                ///////////////////////////
+//                if(colCount%2==0)
+                    individualName.push_back(tempString2.substr(0,tempString2.size()-6));
             }
             pch = strtok_r (NULL,"\t", &end_str2);
         }
 
+
         cout<<" Reading  "<<numHaplotypes<< " haplotypes from data ..."<<endl<<endl;
+       ///////////////////////////
+
         if((int)individualName.size()!=numHaplotypes)
         {
             cout<<endl<<" Error in Data consistency !!! "<<endl<<endl;
@@ -785,10 +790,13 @@ void HaplotypeSet::Create(vector<char> &tempHaplotype)
 }
 
 
-
-bool CheckValidChrom(string chr)
+bool HaplotypeSet::CheckValidChrom(string chr)
 {
     bool result=false;
+
+    if(MyChromosome!="" && chr==MyChromosome)
+        return true;
+
     string temp[]={"1","2","3","4","5","6","7","8","9","10","11"
                     ,"12","13","14","15","16","17","18","19","20","21","22","X"};
     std::vector<string> ValidChromList (temp, temp + sizeof(temp) / sizeof(string) );
@@ -978,12 +986,12 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
     if(FileType.compare("m3vcf")==0)
     {
         cout<<"\n Format = M3VCF (Minimac3 VCF File) "<<endl;
-        if(compressOnly)
-        {
-            cout << "\n Reference File provided by \"--refHaps\" is an M3VCF file !!! \n";
-            cout << " M3VCF files cannot be processed further !!! "<<endl;
-            return false;
-        }
+//        if(compressOnly)
+//        {
+//            cout << "\n Reference File provided by \"--refHaps\" is an M3VCF file !!! \n";
+//            cout << " M3VCF files cannot be processed further !!! "<<endl;
+//            return false;
+//        }
 
 
         return readm3vcfFile(filename,CHR,START,END,WINDOW);
