@@ -3,7 +3,7 @@
 MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &tHap,vector<int> &optStructure,bool NoTargetEstimation)
 {
     MarkovParameters *MP=new MarkovParameters(rHap.numMarkers);
-    rHap.calculateFreq();
+    rHap.CalculateFreq();
 
     cout<<" ------------------------------------------------------------------------------"<<endl;
     cout<<"                             PARAMETER ESTIMATION                              "<<endl;
@@ -102,7 +102,7 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
            // Target with one panel at position i
             HaplotypeSet tHap_loo;
 
-            vector<char> tempHap(rHap.numMarkers);
+            vector<bool> tempHap(rHap.numMarkers);
             rHap.reconstructHaplotype(tempHap,i);
             tHap_loo.Create(tempHap);
 
@@ -123,16 +123,26 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
             for(int group=1;group<(int)optStructure.size();group++)
             {
 
-
                 MM.foldProbabilities(foldedProb,group-1,StructureInfo_loo[group-1],0,refCount-1);
                 MM.leftNoRecoProb[group-1][0]=foldedProb;
+
+
                 if(group==1 && !missing_loo[0])
-                    Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],rHap.alleleFreq[tHap_loo.getScaffoldedHaplotype(0,0)][0],
-                          tHap_loo.getScaffoldedHaplotype(0,0),MM.backgroundError, foldedProb.size(),StructureInfo_loo[0]);
-                    int hapID=0;
+                    {
+                        if(!tHap_loo.getMissingScaffoldedHaplotype(0,0))
+                            {
+
+                                Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],
+                                        tHap_loo.getScaffoldedHaplotype(0,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
+                                        tHap_loo.getScaffoldedHaplotype(0,0),MM.backgroundError, foldedProb.size(),StructureInfo_loo[0]);
+                            }
+                    }
+
+
+                int hapID=0;
                 MM.WalkLeft(tHap_loo,hapID,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],
                             foldedProb,optStructure[group-1],optStructure[group],
-                            StructureInfo_loo[group-1],rHap.alleleFreq);
+                            StructureInfo_loo[group-1],rHap.AlleleFreq);
                 splitFoldedProb(recomProb,MM.leftProb[group-1][optStructure[group]-optStructure[group-1]],MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]]);
                 MM.unfoldProbabilities(group-1,recomProb,MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]],foldedProb,0,StructureInfo_loo,refCount-1);
 
@@ -146,7 +156,8 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
                     MM.foldProbabilities(foldedProb,group-1,StructureInfo_loo[group-1],1,refCount-1);
                     noRecomProb=foldedProb;
                     MM.CountExpected(tHap_loo,0,foldedProb,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],rightProbTemp,noRecomProb,
-                                     MM.junctionLeftProb[group-1],MM.junctionRightProb[group], optStructure[group-1],optStructure[group],StructureInfo_loo[group-1],rHap.alleleFreq);
+                                     MM.junctionLeftProb[group-1],MM.junctionRightProb[group], optStructure[group-1],
+                                     optStructure[group],StructureInfo_loo[group-1],rHap.AlleleFreq);
                     splitFoldedProb(recomProb,rightProbTemp,noRecomProb);
                     MM.unfoldProbabilities(group-1,recomProb,noRecomProb,foldedProb,1,StructureInfo_loo,refCount-1);
                 }
@@ -194,10 +205,14 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
                     MM.leftNoRecoProb[group-1][0]=foldedProb;
 
                     if(group==1 && !tHap.missing[0])
-                    Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],rHap.alleleFreq[tHap.getScaffoldedHaplotype(i,0)][0],
-                          tHap.getScaffoldedHaplotype(i,0),MM.backgroundError, foldedProb.size(),rHap.ReducedStructureInfo[0]);
+                        if(!tHap.getMissingScaffoldedHaplotype(i,0))
+                            Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],
+                                tHap.getScaffoldedHaplotype(i,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
+                                tHap.getScaffoldedHaplotype(i,0),MM.backgroundError, foldedProb.size(),rHap.ReducedStructureInfo[0]);
 
-                    MM.WalkLeft(tHap,i,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],foldedProb,optStructure[group-1],optStructure[group],rHap.ReducedStructureInfo[group-1],rHap.alleleFreq);
+
+
+                    MM.WalkLeft(tHap,i,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],foldedProb,optStructure[group-1],optStructure[group],rHap.ReducedStructureInfo[group-1],rHap.AlleleFreq);
 
                     splitFoldedProb(recomProb,MM.leftProb[group-1][optStructure[group]-optStructure[group-1]],MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]]);
 
@@ -216,7 +231,7 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
 
 
                         MM.CountExpected(tHap,i,foldedProb,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],rightProbTemp,noRecomProb,
-                                         MM.junctionLeftProb[group-1],MM.junctionRightProb[group],optStructure[group-1],optStructure[group],rHap.ReducedStructureInfo[group-1],rHap.alleleFreq);
+                                         MM.junctionLeftProb[group-1],MM.junctionRightProb[group],optStructure[group-1],optStructure[group],rHap.ReducedStructureInfo[group-1],rHap.AlleleFreq);
 
 
 
@@ -256,13 +271,8 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
         double errors = 0;
         for (int i = 0; i <  rHap.numMarkers ; i++)
         {
-            double heterozygosity = 1.0 - pow(rHap.alleleFreq[1][i],2)
-                                         - pow(rHap.alleleFreq[2][i],2)
-                                         - pow(rHap.alleleFreq[3][i],2)
-                                         - pow(rHap.alleleFreq[4][i],2)
-                                         - pow(rHap.alleleFreq[5][i],2)
-                                         - pow(rHap.alleleFreq[6][i],2)
-                                         - pow(rHap.alleleFreq[7][i],2);
+            double heterozygosity = 1.0 - pow(rHap.AlleleFreq[i],2)
+                                         - pow(1-rHap.AlleleFreq[i],2);
             errors += MP->Error[i] * heterozygosity;
         }
         errors /= (double) rHap.numMarkers  + 1e-30;
@@ -328,6 +338,7 @@ void Imputation::MergeFinalVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationS
     for (int i = rHap.PrintStartIndex; i <= rHap.PrintEndIndex; i++)
    {
 
+
         if(i%10000==0)
             {
                 printf("    Merging marker %d of %d [%.1f%%] to VCF File ...", i + 1, rHap.numMarkers,100*(double)(i + 1)/(int)rHap.numMarkers);
@@ -338,7 +349,11 @@ void Imputation::MergeFinalVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationS
         ifprintf(vcfdosepartial,"\n%s\t%d\t%s\t%s\t%s\t.\tPASS\tMAF=%.5f;R2=%.5f",
         rHap.VariantList[i].chr.c_str(),rHap.VariantList[i].bp,
         rHap.VariantList[i].name.c_str(),rHap.VariantList[i].refAlleleString.c_str(),
-        rHap.VariantList[i].altAlleleString.c_str(),1-stats.AlleleFrequency(i),stats.Rsq(i));
+        rHap.VariantList[i].altAlleleString.c_str(),stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),stats.Rsq(i));
+
+
+
+
 
         if(!tHap.missing[i])
             ifprintf(vcfdosepartial,";ER2=%.5f",stats.EmpiricalRsq(i));
@@ -395,9 +410,8 @@ void Imputation::FlushPartialVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,Haplotype
     for (int i = rHap.PrintStartIndex; i <= rHap.PrintEndIndex; i++)
    {
         bool majorIsReference=false;
-        if((int)rHap.major[i]==rHap.VariantList[i].refAllele)
+         if(!rHap.major[i])
             majorIsReference=true;
-
 
         if(!tHap.AllMaleTarget)
             PartialDosage.PrintDosageForVcfOutputForID(vcfdosepartial,i, majorIsReference,rHap.VariantList[i].refAllele);
@@ -429,15 +443,17 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
 
     ImputationStatistics stats(rHap.numMarkers );
     IFILE dosages=NULL, hapdose=NULL, haps=NULL,vcfdosepartial=NULL;
-    HaplotypeSet DosageForVcf;
+//    HaplotypeSet DosageForVcf;
     HaplotypeSet DosageForVcfPartial;
+    DosageForVcfPartial.unphasedOutput=unphasedOutput;
+
 
     cout << "\n Starting Imputation ...";
     printf("\n\n Setting up Markov Model for Imputation ...");
     cout<<endl<<endl;
 
 
-    if (phased)
+    if (phased && !unphasedOutput)
     {
 
         hapdose = ifopen(outFile + ".hapDose" + (gzip ? ".gz" : ""), "wb", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
@@ -508,7 +524,8 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         }
 
         vector<float> foldedProb,recomProb,noRecomProb, rightProb,probAlleleNoStandardize(8,0.0),tempDoseHap1;
-        vector<char> tempHap(rHap.numMarkers),tempDoseAlleleHap1;
+        vector<bool> tempHap(rHap.numMarkers),tempMissHap(rHap.numMarkers);
+        vector<bool> tempDoseAlleleHap1;
 
         MarkovModel MM(tHap,rHap,tHap.missing,rHap.major);
 
@@ -522,6 +539,10 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
             printf("  Processing Haplotype %d of %d ...", hapIdIndiv + 1, MaxSample);
             cout<<endl;
 
+
+            MM.ThisHapId=hapIdIndiv;
+
+
             for(int group=1;group<(int)optStructure.size();group++)
             {
 
@@ -530,20 +551,28 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
 
 
                 if(group==1 && !tHap.missing[0])
-                Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],rHap.alleleFreq[tHap.getScaffoldedHaplotype(hapIdIndiv,0)][0],
-                          tHap.getScaffoldedHaplotype(hapIdIndiv,0),MM.backgroundError, foldedProb.size(),rHap.ReducedStructureInfo[0]);
+                        if(!tHap.getMissingScaffoldedHaplotype(hapIdIndiv,0))
+                            {
+
+                                Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],
+                                tHap.getScaffoldedHaplotype(hapIdIndiv,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
+                                tHap.getScaffoldedHaplotype(hapIdIndiv,0),MM.backgroundError,
+                                      foldedProb.size(),rHap.ReducedStructureInfo[0]);
+                            }
+
+
 
                 MM.WalkLeft(tHap,hapIdIndiv,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],
                             foldedProb,optStructure[group-1],optStructure[group],
-                            rHap.ReducedStructureInfo[group-1],rHap.alleleFreq);
+                            rHap.ReducedStructureInfo[group-1],rHap.AlleleFreq);
 
                 splitFoldedProb(recomProb,MM.leftProb[group-1][optStructure[group]-optStructure[group-1]],MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]]);
 
                 MM.unfoldProbabilities(group-1,recomProb,MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]],foldedProb,0,rHap.ReducedStructureInfo,refCount);
 
-
-
             }
+
+
 
             for(int group=optStructure.size()-1;group>0;group--)
             {
@@ -553,16 +582,18 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
                 noRecomProb=foldedProb;
 
                 MM.Impute(tHap,foldedProb,hapIdIndiv,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],rightProb,noRecomProb,MM.junctionLeftProb[group-1],
-                          MM.junctionRightProb[group],optStructure[group-1], optStructure[group],rHap.ReducedStructureInfo[group-1],1,rHap.alleleFreq);
+                          MM.junctionRightProb[group],optStructure[group-1], optStructure[group],rHap.ReducedStructureInfo[group-1],1,rHap.AlleleFreq);
 
                 splitFoldedProb(recomProb,rightProb,noRecomProb);
                 MM.unfoldProbabilities(group-1,recomProb,noRecomProb,foldedProb,1,rHap.ReducedStructureInfo,refCount);
             }
 
-
-
             for(int jjj=0;jjj<rHap.numMarkers;jjj++)
-                tempHap[jjj]=tHap.getScaffoldedHaplotype(hapIdIndiv,jjj);
+                {
+                    tempHap[jjj]=tHap.getScaffoldedHaplotype(hapIdIndiv,jjj);
+                    tempMissHap[jjj]=tHap.getMissingScaffoldedHaplotype(hapIdIndiv,jjj);
+
+                }
 
             if(vcfOutput)
             {
@@ -574,11 +605,11 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
             }
             #pragma omp critical
             {
-                stats.Update(MM.imputedHap, MM.leaveOneOut,tempHap,rHap.major);
+                stats.Update(MM.imputedHap, MM.leaveOneOut,tempHap,tempMissHap,rHap.major);
             }
 
             #pragma omp critical
-            if (phased)
+            if (phased && !unphasedOutput)
             {
 
                 printf("    Outputting HAPLO%d of Individual %s for Haplotype File...", tHap.AllMaleTarget?1:(hapIdIndiv%2+1) ,tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str());
@@ -589,7 +620,9 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
                 for (int j = rHap.PrintStartIndex; j <= rHap.PrintEndIndex; j++)
                 {
                     ifprintf(hapdose, "\t%.5f", MM.imputedHap[j]);
-                    ifprintf(haps, "%c", MM.imputedAlleles[j]);
+                    ifprintf(haps, "%c", MM.imputedAlleles[j]?
+                                    rHap.VariantList[j].refAllele
+                                        :rHap.VariantList[j].altAllele);
                 }
 
             ifprintf(hapdose, "\n");
@@ -672,7 +705,7 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
     cout<<endl<<" Imputation Finished ... "<<endl;
 
 
-    if (phased)
+    if (phased && !unphasedOutput)
     {
         ifclose(hapdose);
         ifclose(haps);
@@ -763,27 +796,26 @@ void Imputation::normalize(vector<float> &x)
 
 void Imputation::Condition(HaplotypeSet &rHap, int markerPos,vector<float> &Prob,
                             vector<float> &noRecomProb,
-                            double e, double freq, char observed, double backgroundError, int NoRedStates, ReducedHaplotypeInfo &Info)
+                            double e, double freq, bool observed, double backgroundError, int NoRedStates, ReducedHaplotypeInfo &Info)
 {
-
-    if (observed ==  0)
-    {
-        return;
-    }
 
     double prandom = e*freq+backgroundError;
     double pmatch = (1.0 - e)+e*freq+backgroundError;
 
-    double P[8] = { prandom, prandom, prandom, prandom,prandom, prandom, prandom, prandom };
-
-	P[(int)observed] = pmatch;
-
     for (int i = 0; i<NoRedStates; i++)
     {
 
-        char allele=Info.returnHapAtPosition(i,markerPos);
-        Prob[i]*=P[(int)allele];
-        noRecomProb[i]*=P[(int)allele];
+        bool allele=Info.returnHapAtPosition(i,markerPos);
+        if(allele==observed)
+        {
+            Prob[i]*=pmatch;
+            noRecomProb[i]*=pmatch;
+        }
+        else
+        {
+            Prob[i]*=prandom;
+            noRecomProb[i]*=prandom;
+        }
     }
 }
 
@@ -801,6 +833,7 @@ void Imputation::LooOptimalStructure( vector<ReducedHaplotypeInfo> &StructureInf
         int looIndex=rHap.ReducedStructureInfo[i].uniqueIndexMap[loo];
 
         StructureInfo_loo[i].uniqueCardinality=rHap.ReducedStructureInfo[i].uniqueCardinality;
+        StructureInfo_loo[i].InvuniqueCardinality=rHap.ReducedStructureInfo[i].InvuniqueCardinality;
         StructureInfo_loo[i].startIndex=rHap.ReducedStructureInfo[i].startIndex;
         StructureInfo_loo[i].endIndex=rHap.ReducedStructureInfo[i].endIndex;
 
@@ -845,6 +878,12 @@ void Imputation::LooOptimalStructure( vector<ReducedHaplotypeInfo> &StructureInf
                     StructureInfo_loo[i].uniqueIndexMap[out++] = rHap.ReducedStructureInfo[i].uniqueIndexMap[in];
             }
 
+        }
+
+
+        for (int in = 0; in < (int)StructureInfo_loo[i].uniqueCardinality.size(); in++)
+        {
+            StructureInfo_loo[i].InvuniqueCardinality[in]=1.0/(float)StructureInfo_loo[i].uniqueCardinality[in];
         }
 
     }

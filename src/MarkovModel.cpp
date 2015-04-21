@@ -41,11 +41,9 @@ void MarkovModel::initializeMatrices(HaplotypeSet &tHap,HaplotypeSet &rHap, vect
 
 
 double MarkovModel::CountErrors(vector<float> &probHap,
-                                int position, char observed, double e,double freq,
+                                int position, bool observed, double e,double freq,
                                 ReducedHaplotypeInfo &Info)
 {
-    if (observed == 0)
-        return e;
 
     double match = 0;
     double mismatch = 0;
@@ -100,7 +98,7 @@ void MarkovModel::CountExpected(HaplotypeSet &tHap,int hapID,vector<float> &righ
                          vector<vector<float> > &Leftprob, vector<vector<float> > &leftNoRecomProb,
                          vector<float> &rightProb, vector<float> &rightNoRecomProb,
                          vector<float> &juncLeftprob,vector<float> &juncRightProb,
-                         int start,int end,ReducedHaplotypeInfo &Info,vector<vector<double> > &alleleFreq)
+                         int start,int end,ReducedHaplotypeInfo &Info,vector<double> &alleleFreq)
 {
 
     rightProb=rightFoldProb;
@@ -117,24 +115,26 @@ void MarkovModel::CountExpected(HaplotypeSet &tHap,int hapID,vector<float> &righ
                         probHap,Info);
 
 
-
-
-
-    if(!missing[end])
-        empError[end]+=CountErrors(probHap,end,tHap.getScaffoldedHaplotype(hapID,end),
-                               Error[end], alleleFreq[tHap.getScaffoldedHaplotype(hapID,end)][end],Info);
+    if(!missing[end] && !tHap.getMissingScaffoldedHaplotype(hapID,end))
+         empError[end]+=CountErrors(probHap,end,tHap.getScaffoldedHaplotype(hapID,end),
+                               Error[end],
+                               tHap.getScaffoldedHaplotype(hapID,end)? alleleFreq[end] : 1-alleleFreq[end],Info);
     else
         empError[end]+=Error[end];
 
+
     for (int markerPos=end-1; markerPos>start; markerPos--)
     {
-        if (!missing[markerPos+1])
+        if (!missing[markerPos+1] && !tHap.getMissingScaffoldedHaplotype(hapID,markerPos+1))
         {
-            Condition(markerPos+1,rightProb,rightNoRecomProb,
+
+              Condition(markerPos+1,rightProb,rightNoRecomProb,
                       tHap.getScaffoldedHaplotype(hapID,markerPos+1),
                       Error[markerPos+1],
-                      alleleFreq[tHap.getScaffoldedHaplotype(hapID,markerPos+1)][markerPos+1],Info);
+                       tHap.getScaffoldedHaplotype(hapID,markerPos+1)?
+                          alleleFreq[markerPos+1] : 1-alleleFreq[markerPos+1],Info);
         }
+
 
         tempRightProb=rightProb;
 
@@ -148,19 +148,26 @@ void MarkovModel::CountExpected(HaplotypeSet &tHap,int hapID,vector<float> &righ
         CreatePosteriorProb(Leftprob[markerPos-start],rightProb,
                             leftNoRecomProb[markerPos-start],rightNoRecomProb,Leftprob[0],rightFoldProb,Constants,probHap,Info);
 
-        if(!missing[markerPos])
+
+        if(!missing[markerPos] && !tHap.getMissingScaffoldedHaplotype(hapID,markerPos))
             empError[markerPos]+=CountErrors(probHap,markerPos,tHap.getScaffoldedHaplotype(hapID,markerPos),
-                                         Error[markerPos], alleleFreq[tHap.getScaffoldedHaplotype(hapID,markerPos)][markerPos],Info);
+                               Error[markerPos],
+                               tHap.getScaffoldedHaplotype(hapID,markerPos)? alleleFreq[markerPos] : 1-alleleFreq[markerPos]
+                              ,Info);
         else
             empError[markerPos]+=Error[markerPos];
+
     }
 
+    if (!missing[start+1] && !tHap.getMissingScaffoldedHaplotype(hapID,start+1))
+        {
 
-    if (!missing[start+1])
-    {
-
-        Condition(start+1,rightProb,rightNoRecomProb,tHap.getScaffoldedHaplotype(hapID,start+1),Error[start+1],alleleFreq[tHap.getScaffoldedHaplotype(hapID,start+1)][start+1],Info);
-    }
+              Condition(start+1,rightProb,rightNoRecomProb,
+                      tHap.getScaffoldedHaplotype(hapID,start+1),
+                      Error[start+1],
+                       tHap.getScaffoldedHaplotype(hapID,start+1)?
+                          alleleFreq[start+1] : 1-alleleFreq[start+1],Info);
+        }
 
     tempRightProb=rightProb;
     empRecom[start]+=CountRecombinants(Leftprob[0],rightProb,probHap,Recom[start],PrecisionJump[start+1]);
@@ -169,11 +176,15 @@ void MarkovModel::CountExpected(HaplotypeSet &tHap,int hapID,vector<float> &righ
     if(start==0)
         {
             CreatePosteriorProb(Leftprob[0],rightProb,leftNoRecomProb[0],rightNoRecomProb,Leftprob[0],rightFoldProb,Constants,probHap,Info);
-            if(!missing[start])
-                empError[start]+=CountErrors(probHap,start,tHap.getScaffoldedHaplotype(hapID,start), Error[start],
-                                         alleleFreq[tHap.getScaffoldedHaplotype(hapID,start)][start],Info);
+
+            if(!missing[start] && !tHap.getMissingScaffoldedHaplotype(hapID,start))
+                 empError[start]+=CountErrors(probHap,start,tHap.getScaffoldedHaplotype(hapID,start),
+                                       Error[start],
+                                       tHap.getScaffoldedHaplotype(hapID,start)? alleleFreq[start] : 1-alleleFreq[start]
+                                       ,Info);
             else
                 empError[start]+=Error[start];
+
         }
 }
 
@@ -184,7 +195,7 @@ void MarkovModel::Impute(HaplotypeSet &tHap,vector<float> &rightFoldProb,
                          vector<vector<float> > &Leftprob, vector<vector<float> > &leftNoRecomProb,
                          vector<float> &rightProb, vector<float> &rightNoRecomProb,
                          vector<float> &juncLeftprob,vector<float> &juncRightProb,
-                         int start,int end,ReducedHaplotypeInfo &Info,int type,vector<vector<double> > &alleleFreq)
+                         int start,int end,ReducedHaplotypeInfo &Info,int type,vector<double>  &alleleFreq)
 {
 
     rightProb=rightFoldProb;
@@ -195,38 +206,46 @@ void MarkovModel::Impute(HaplotypeSet &tHap,vector<float> &rightFoldProb,
     for(int i=0;i<refCount;i++)
             Constants[Info.uniqueIndexMap[i]]+=(juncLeftprob[i]*juncRightProb[i]);
 
-    Impute(end,tHap.getScaffoldedHaplotype(hapID,end),Leftprob[end-start],rightProb,leftNoRecomProb[end-start],rightNoRecomProb,Leftprob[0],
+    Impute(end,tHap.getScaffoldedHaplotype(hapID,end),tHap.getMissingScaffoldedHaplotype(hapID,end),Leftprob[end-start],rightProb,leftNoRecomProb[end-start],rightNoRecomProb,Leftprob[0],
                rightFoldProb,Constants,Info,alleleFreq);
 
     for (int markerPos=end-1; markerPos>start; markerPos--)
     {
-        if (!missing[markerPos+1])
+
+         if (!missing[markerPos+1] && !tHap.getMissingScaffoldedHaplotype(hapID,markerPos+1))
         {
-            Condition(markerPos+1,rightProb,
-                      rightNoRecomProb,tHap.getScaffoldedHaplotype(hapID,markerPos+1),
-                      Error[markerPos+1],alleleFreq[tHap.getScaffoldedHaplotype(hapID,markerPos+1)][markerPos+1],Info);
+
+              Condition(markerPos+1,rightProb,rightNoRecomProb,
+                      tHap.getScaffoldedHaplotype(hapID,markerPos+1),
+                      Error[markerPos+1],
+                       tHap.getScaffoldedHaplotype(hapID,markerPos+1)?
+                          alleleFreq[markerPos+1] : 1-alleleFreq[markerPos+1],Info);
         }
+
 
         tempRightProb=rightProb;
         Transpose(tempRightProb,rightProb,rightNoRecomProb,Recom[markerPos],
                             Info.uniqueCardinality);
-        Impute(markerPos,tHap.getScaffoldedHaplotype(hapID,markerPos),Leftprob[markerPos-start],rightProb,leftNoRecomProb[markerPos-start],
+        Impute(markerPos,tHap.getScaffoldedHaplotype(hapID,markerPos),tHap.getMissingScaffoldedHaplotype(hapID,markerPos), Leftprob[markerPos-start],rightProb,leftNoRecomProb[markerPos-start],
                    rightNoRecomProb,Leftprob[0],rightFoldProb,Constants,Info,alleleFreq);
     }
 
-    if (!missing[start+1])
-    {
-        Condition(start+1,rightProb,rightNoRecomProb,
-                    tHap.getScaffoldedHaplotype(hapID,start+1),Error[start+1],
-                    alleleFreq[tHap.getScaffoldedHaplotype(hapID,start+1)][start+1],Info);
-    }
+    if (!missing[start+1] && !tHap.getMissingScaffoldedHaplotype(hapID,start+1))
+        {
+
+              Condition(start+1,rightProb,rightNoRecomProb,
+                      tHap.getScaffoldedHaplotype(hapID,start+1),
+                      Error[start+1],
+                       tHap.getScaffoldedHaplotype(hapID,start+1)?
+                          alleleFreq[start+1] : 1-alleleFreq[start+1],Info);
+        }
 
     tempRightProb=rightProb;
     Transpose(tempRightProb,rightProb,rightNoRecomProb,Recom[start],Info.uniqueCardinality);
 
 
     if(start==0)
-        Impute(start,tHap.getScaffoldedHaplotype(hapID,start),Leftprob[0],rightProb,leftNoRecomProb[0],
+        Impute(start,tHap.getScaffoldedHaplotype(hapID,start),tHap.getMissingScaffoldedHaplotype(hapID,start),Leftprob[0],rightProb,leftNoRecomProb[0],
                        rightNoRecomProb,Leftprob[0],rightFoldProb,Constants,Info,alleleFreq);
 
 }
@@ -243,40 +262,31 @@ void MarkovModel::CreatePosteriorProb(vector<float> &Leftprob,vector<float> &rig
     double value=0.0;
     for(int i=0;i<noReducedStatesCurrent;i++)
     {
-        float LeftR=Leftprob[i]-leftNoRecoProb[i];
-        float RightR=rightProb[i]-rightNoRecoProb[i];
 
+        value = Constants[i]*(leftNoRecoProb[i]*rightNoRecoProb[i]/(leftEndProb[i]*rightEndProb[i]))
+            +(Leftprob[i]*rightProb[i]-leftNoRecoProb[i]*rightNoRecoProb[i])*(Info.InvuniqueCardinality[i]);
 
-     if(Info.uniqueCardinality[i]>0)
-            value    =((Constants[i]/leftEndProb[i])
-            *(leftNoRecoProb[i]/rightEndProb[i])*rightNoRecoProb[i])
-                        +(((leftNoRecoProb[i]*RightR)
-                           +(LeftR*rightNoRecoProb[i])
-                           +(LeftR*RightR))/((double)Info.uniqueCardinality[i]));
-
-
-    probHap[i]=value;
+        probHap[i]=value;
     }
 }
 
 
-
-
-void MarkovModel::Impute(int position, char observed,
+void MarkovModel::ImputeOld(int position, bool observed, bool observedMiss,
                          vector<float> &Leftprob,vector<float> &rightProb,
                          vector<float> &leftNoRecoProb,vector<float> &rightNoRecoProb,
                          vector<float> &leftEndProb,vector<float> &rightEndProb,
                          vector<float> &Constants,ReducedHaplotypeInfo &Info,
-                         vector<vector<double> > &alleleFreq)
+                         vector<double> &alleleFreq)
 {
 
+    float Pref=0.0,Palt=0.0;
 
-    float P[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     double value=0.0;
 
     for(int i=0;i<noReducedStatesCurrent;)
     {
-        int hp = (int)Info.returnHapAtPosition(i,position);
+        bool hp = Info.returnHapAtPosition(i,position);
+
         float LeftR=Leftprob[i]-leftNoRecoProb[i];
         float RightR=rightProb[i]-rightNoRecoProb[i];
         if(Info.uniqueCardinality[i]>0)
@@ -286,9 +296,17 @@ void MarkovModel::Impute(int position, char observed,
                            +(LeftR*rightNoRecoProb[i])
                            +(LeftR*RightR))/((double)Info.uniqueCardinality[i]));
 
-        float pp = P[hp] + value;
+
+        float pp=0.0;
+
+        if(hp)
+            pp = Palt + value;
+        else
+            pp = Pref + value;
+
+
 		i++;
-		while ((i < noReducedStatesCurrent) && (hp == (int)Info.returnHapAtPosition(i,position)))
+		while ((i < noReducedStatesCurrent) && (hp == Info.returnHapAtPosition(i,position)))
         {
             LeftR=Leftprob[i]-leftNoRecoProb[i];
             RightR=rightProb[i]-rightNoRecoProb[i];
@@ -302,36 +320,150 @@ void MarkovModel::Impute(int position, char observed,
             pp += value;
             i++;
         }
-        P[hp]=pp;
+
+        if(hp)
+            Palt = pp ;
+        else
+            Pref = pp;
     }
 
-    float ptotal = P[1] + P[2] + P[3] + P[4] + P[5] + P[6] + P[7];
-    float pmajor = P[(int)major[position]];
-    int mle = 1;
-    for (int i = 2; i <= 7; i++)
-        if (P[i] >= P[mle])
-            mle = i;
 
-    char labels[]= {0, 'A', 'C', 'G', 'T', 'D', 'I', 'R'};
+
+    float ptotal =Pref+Palt;
+
+    float pmajor = major[position]? Palt : Pref;
+
+
+    bool mle = false;
+
+    if(Pref<Palt)
+    {
+        mle=true;
+    }
+
+
 
     imputedDose[position] += imputedHap[position]= (pmajor / ptotal);
-    imputedAlleles[position] = labels[mle];
+
+
+    imputedAlleles[position] = mle;
     imputedAlleleNumber[position] = mle;
 
-    double fmatch = 1.0 / (1. - Error[position] + Error[position] * alleleFreq[major[position]][position] + backgroundError);
-    double fmismatch = 1.0 / (Error[position] * alleleFreq[major[position]][position] + backgroundError);
+    double fmatch = 1.0 / (1. - Error[position] + Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError );
+    double fmismatch = 1.0 / (Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError);
 
-    for (int i = 1; i <= 7; i++)
-        if (observed== i)
-            P[i] *= fmatch;
+
+
+
+    if(!observedMiss)
+    {
+        if(observed)
+        {
+            Palt *= fmatch;
+            Pref *= fmismatch;
+        }
         else
-            P[i] *= fmismatch;
+        {
+            Pref *= fmatch;
+            Palt *= fmismatch;
+        }
+    }
 
-   ptotal = P[1] + P[2] + P[3] + P[4] + P[5] + P[6] + P[7];
+    ptotal =Pref+Palt;
+    pmajor = major[position]? Palt : Pref;
+    leaveOneOut[position] = pmajor / ptotal;
 
 
-   pmajor = P[(int)major[position]];
-   leaveOneOut[position] = pmajor / ptotal;
+}
+
+
+
+
+void MarkovModel::Impute(int position, bool observed, bool observedMiss,
+                         vector<float> &Leftprob,vector<float> &rightProb,
+                         vector<float> &leftNoRecoProb,vector<float> &rightNoRecoProb,
+                         vector<float> &leftEndProb,vector<float> &rightEndProb,
+                         vector<float> &Constants,ReducedHaplotypeInfo &Info,
+                         vector<double> &alleleFreq)
+{
+
+
+
+    float Pref=0.0,Palt=0.0;
+
+    float *value = (float *)alloca(noReducedStatesCurrent*sizeof(float));
+    for(int i=0; i<noReducedStatesCurrent; i++)
+    {
+        // careful: order of operations is important to avoid overflows
+        value[i] = Constants[i]*(leftNoRecoProb[i]*rightNoRecoProb[i]/(leftEndProb[i]*rightEndProb[i]))
+            +(Leftprob[i]*rightProb[i]-leftNoRecoProb[i]*rightNoRecoProb[i])*(Info.InvuniqueCardinality[i]);
+    }
+
+    for (int i=0; i<noReducedStatesCurrent;)
+    {
+        bool hp = Info.returnHapAtPosition(i,position);
+
+        float pp=0.0;
+
+        pp= value[i] + (hp? Palt:Pref);
+
+        i++;
+        while ((i < noReducedStatesCurrent) && (hp == Info.returnHapAtPosition(i,position)))
+        {
+            pp += value[i];
+            i++;
+        }
+
+        if(hp)
+            Palt = pp ;
+        else
+            Pref = pp;
+    }
+
+
+    float ptotal =Pref+Palt;
+
+    float pmajor = major[position]? Palt : Pref;
+
+
+    bool mle = false;
+
+    if(Pref<Palt)
+    {
+        mle=true;
+    }
+
+
+
+    imputedDose[position] += imputedHap[position]= (pmajor / ptotal);
+    imputedAlleles[position] = mle;
+    imputedAlleleNumber[position] = mle;
+
+    double fmatch = 1.0 / (1. - Error[position] + Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError );
+    double fmismatch = 1.0 / (Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError);
+
+
+
+
+    if(!observedMiss)
+    {
+        if(observed)
+        {
+            Palt *= fmatch;
+            Pref *= fmismatch;
+        }
+        else
+        {
+            Pref *= fmatch;
+            Palt *= fmismatch;
+        }
+    }
+
+    ptotal =Pref+Palt;
+    pmajor = major[position]? Palt : Pref;
+    leaveOneOut[position] = pmajor / ptotal;
+
+
 }
 
 
@@ -370,6 +502,37 @@ void MarkovModel::unfoldProbabilities(int bridgeIndex,vector<float> &recomProb,
                                      int direction,vector<ReducedHaplotypeInfo> &StructureInfo,
                                      int noReference)
 {
+    int N = StructureInfo[bridgeIndex].uniqueCardinality.size();
+
+    float *adj_rec = (float *)alloca(N*sizeof(float));
+    float *adj_norec = (float *)alloca(N*sizeof(float));
+    ReducedHaplotypeInfo &thisInfo = StructureInfo[bridgeIndex];
+    for (int i=0; i<N; i++)
+    {
+        adj_rec[i] = recomProb[i] * thisInfo.InvuniqueCardinality[i];
+    }
+    for (int i=0; i<N; i++)
+    {
+        adj_norec[i] = noRecomProb[i] / foldedProb[i];
+    }
+    vector<float> &prev = direction ? junctionRightProb[bridgeIndex+1] : junctionLeftProb[bridgeIndex];
+    vector<float> &next = direction ? junctionRightProb[bridgeIndex] : junctionLeftProb[bridgeIndex+1];
+    for (int i=0; i<noReference; i++)
+    {
+        int m = thisInfo.uniqueIndexMap[i];
+        next[i] = adj_rec[m] + adj_norec[m]*prev[i];
+    }
+
+}
+
+
+
+void MarkovModel::unfoldProbabilitiesOld(int bridgeIndex,vector<float> &recomProb,
+                                       vector<float> &noRecomProb,vector<float> &foldedProb,
+                                     int direction,vector<ReducedHaplotypeInfo> &StructureInfo,
+                                     int noReference)
+{
+
     ReducedHaplotypeInfo *TempStructureInfo=&StructureInfo[bridgeIndex];
     vector<int> *TempuniqueIndexMap=&TempStructureInfo->uniqueIndexMap;
     vector<int> *TempuniqueCardinality=&TempStructureInfo->uniqueCardinality;
@@ -397,6 +560,9 @@ void MarkovModel::unfoldProbabilities(int bridgeIndex,vector<float> &recomProb,
             (noRecomProb[tempIndex]*((*PrevjunctionRightProb)[i]/foldedProb[tempIndex]));
         }
     }
+
+
+
 }
 
 
@@ -406,7 +572,7 @@ void MarkovModel::unfoldProbabilities(int bridgeIndex,vector<float> &recomProb,
 void MarkovModel::WalkLeft(HaplotypeSet &tHap, int &hapID,
                            vector<vector<float> > &Leftprob,vector<vector<float> > &noRecomProb,
                            vector<float> &foldedProb,int start,int end,ReducedHaplotypeInfo &Info,
-                           vector<vector<double> > &alleleFreq)
+                           vector<double> &alleleFreq)
 {
 
     Leftprob[0] = foldedProb;
@@ -419,13 +585,21 @@ void MarkovModel::WalkLeft(HaplotypeSet &tHap, int &hapID,
                   Leftprob[markerPos-start],noRecomProb[markerPos-start],
                   Recom[markerPos-1],Info.uniqueCardinality);
 
-        if (!missing[markerPos])
+
+        if (!missing[markerPos] && !tHap.getMissingScaffoldedHaplotype(hapID,markerPos))
         {
-           Condition(markerPos,Leftprob[markerPos-start],
+
+
+
+
+           if(!tHap.getMissingScaffoldedHaplotype(hapID,markerPos))
+                Condition(markerPos,Leftprob[markerPos-start],
                      noRecomProb[markerPos-start],
                      tHap.getScaffoldedHaplotype(hapID,markerPos),
                      Error[markerPos],
-                     alleleFreq[tHap.getScaffoldedHaplotype(hapID,markerPos)][markerPos],Info);
+                     tHap.getScaffoldedHaplotype(hapID,markerPos)?
+                          alleleFreq[markerPos] : 1-alleleFreq[markerPos],Info);
+
         }
     }
 
@@ -434,28 +608,30 @@ void MarkovModel::WalkLeft(HaplotypeSet &tHap, int &hapID,
 
 
 void MarkovModel::Condition(int markerPos,vector<float> &Prob,
-                            vector<float> &noRecomProb, char observed,double e,double freq,ReducedHaplotypeInfo &Info)
+                            vector<float> &noRecomProb, bool observed,double e,double freq,ReducedHaplotypeInfo &Info)
 {
-
-    if (observed ==  0)
-    {
-        return;
-    }
 
     double prandom = e*freq+backgroundError;
     double pmatch = (1.0 - e)+e*freq+backgroundError;
 
-    double P[8] = { prandom, prandom, prandom, prandom,prandom, prandom, prandom, prandom };
-
-	P[(int)observed] = pmatch;
-
     for (int i = 0; i<noReducedStatesCurrent; i++)
     {
 
-        char allele=Info.returnHapAtPosition(i,markerPos);
-        Prob[i]*=P[(int)allele];
-        noRecomProb[i]*=P[(int)allele];
+        bool allele=Info.returnHapAtPosition(i,markerPos);
+        if(allele==observed)
+        {
+            Prob[i]*=pmatch;
+            noRecomProb[i]*=pmatch;
+        }
+        else
+        {
+            Prob[i]*=prandom;
+            noRecomProb[i]*=prandom;
+        }
     }
+
+
+
 }
 
 
@@ -497,6 +673,11 @@ bool MarkovModel::Transpose(vector<float> &from,
     {
         to[i]=from[i]*complement+(uniqueCardinality[i]*sum);
     }
+
+
+
     return tempPrecisionJumpFlag;
+
+
  }
 

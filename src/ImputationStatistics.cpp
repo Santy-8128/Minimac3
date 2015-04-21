@@ -24,7 +24,8 @@ ImputationStatistics::ImputationStatistics(int markers)
 ImputationStatistics::~ImputationStatistics()
    { }
 
-void ImputationStatistics::Update(vector<float> &doses, vector<float> &loo,vector<char> &observed, vector<char> &major)
+void ImputationStatistics::Update(vector<float> &doses, vector<float> &loo
+                                  ,vector<bool> &observed,vector<bool> &Miss, vector<bool> &major)
 {
     for (int i = 0; i < (int)doses.size(); i++)
     {
@@ -32,10 +33,11 @@ void ImputationStatistics::Update(vector<float> &doses, vector<float> &loo,vecto
         sumSq[i] += doses[i] * doses[i];
         sumCall[i] += doses[i] > 0.5 ? doses[i] : 1.0 - doses[i];
         count[i] ++;
+
     }
 
     for (int i = 0; i < (int)loo.size(); i++)
-        if (observed[i])
+        if (!Miss[i])
         {
             looSum[i] += loo[i];
             looSumSq[i] += loo[i] * loo[i];

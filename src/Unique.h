@@ -47,13 +47,14 @@ class ReducedHaplotypeInfo
         int startIndex,endIndex;
         //vector<int> uniqueRep;  // in reduced state space (which is finally enumerated by this vector) ... indices of original haplotypes which are representatives
         vector<int> uniqueCardinality; // has number of representatives for each unique representative
+        vector<float> InvuniqueCardinality; // has number of representatives for each unique representative
         vector<int> uniqueIndexMap; // maps to corresponding item in the uniqueRep... required to map Constants and unfold fold probs
 
 
-        vector<vector<char> > uniqueHaps;
+        vector<vector<bool> > uniqueHaps;
 
 
-        char returnHapAtPosition(int i,int position)
+        bool returnHapAtPosition(int i,int position)
         {
             //assert((position-startIndex)>=0);
             return uniqueHaps[i][position-startIndex];
@@ -138,6 +139,9 @@ class findUnique
          vector<int> & bestSlice, vector<int> & bestComplexity, vector<vector<int> > &bestIndex);
 
          double FlushBlocks(vector<int> &optEndPoints,vector<ReducedHaplotypeInfo> &HapInfo, vector<variant> &varList, int LastflushPos,vector<String> & haplotypes, vector<int> & cost,
+                   vector<int> & bestComplexity, vector<int> & bestSlice, vector<vector<int> > &bestIndex);
+
+  double FlushBlocks(vector<ReducedHaplotypeInfo> &HapInfo, vector<variant> &varList, int LastflushPos,vector<String> & haplotypes, vector<int> & cost,
                    vector<int> & bestComplexity, vector<int> & bestSlice, vector<vector<int> > &bestIndex);
 
 

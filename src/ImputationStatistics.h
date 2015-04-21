@@ -10,9 +10,9 @@ class ImputationStatistics
       ImputationStatistics(int markers);
       ~ImputationStatistics();
 
-      void Update(vector<float> &doses, vector<float> &loo,vector<char> &observed, vector<char> &major);
-      void GoldenUpdate(vector<float> &doses, vector<float> &loo,vector<char> &observed, vector<char> &major);
-      void GoldenUpdate2(vector<float> &doses, vector<char> &observed1,vector<char> &observed2, vector<char> &major);
+      void Update(vector<float> &doses, vector<float> &loo,vector<bool> &observed,vector<bool> &Miss, vector<bool> &major);
+//      void GoldenUpdate(vector<float> &doses, vector<float> &loo,vector<char> &observed, vector<char> &major);
+//      void GoldenUpdate2(vector<float> &doses, vector<char> &observed1,vector<char> &observed2, vector<char> &major);
 
       double Rsq(int marker);
       double AlleleFrequency(int marker);

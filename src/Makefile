@@ -1,7 +1,7 @@
 # Name of your executable, replace sampleProgram with your program name
 EXE=Minimac3
 OPTFLAG_OPT = -O4 
-OPTFLAG_DEBUG = -ggdb -O0 -fopenmp
+OPTFLAG_DEBUG = -ggdb -O0
 ########################
 # Specify your Files:
 # TOOLBASE - files with both .cpp and .h.  Just include the base name.

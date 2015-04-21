@@ -37,7 +37,7 @@ int main(int argc, char ** argv)
     cpus=5;
     #endif
 
-	bool log = false, phased = false,passOnly = false, doseOutput = false, vcfOutput = true, gzip = true, nobgzip = false, rsid=false;
+	bool log = false, duplicates=false, unphasedOutput=false, phased = false,passOnly = false, doseOutput = false, vcfOutput = true, gzip = true, nobgzip = false, rsid=false;
 	bool processReference=false,updateModel=false, onlyRefMarkers=false, help = false, params = false;
     String MyChromosome="";
 
@@ -85,10 +85,10 @@ int main(int argc, char ** argv)
 		LONG_PARAMETER("onlyRefMarkers", &onlyRefMarkers)
 //		LONG_INTPARAMETER("transFactor", &transFactor)
 //		LONG_INTPARAMETER("cisFactor", &cisFactor)
-		LONG_STRINGPARAMETER("golden", &golden)
 		LONG_INTPARAMETER("sample", &max_indiv)
 		LONG_INTPARAMETER("marker", &max_marker)
-		LONG_STRINGPARAMETER("remove", &removeSam)
+		LONG_PARAMETER("duplicates", &duplicates)
+		LONG_PARAMETER("unphasedOutput", &unphasedOutput)
 		END_LONG_PARAMETERS();
 
 
@@ -114,7 +114,10 @@ int main(int argc, char ** argv)
 
     #ifdef _OPENMP
         omp_set_num_threads(cpus);
+    #else
+        cpus=1;
     #endif
+
 
     if(nobgzip)
         gzip=false;
@@ -309,7 +312,7 @@ int main(int argc, char ** argv)
     if(!processReference)
     {
 
-         if (haps == "")
+        if (haps == "")
         {
             cout <<" Missing \"--haps\", a required parameter (for imputation).\n";
             cout <<" OR use \"--processReference\" to just process the reference panel.\n";
@@ -347,9 +350,12 @@ int main(int argc, char ** argv)
     }
 
     HaplotypeSet target,reference;
-
     target.MyChromosome=(string)MyChromosome;
     reference.MyChromosome=(string)MyChromosome;
+    reference.CPU=cpus;
+    reference.Duplicates=duplicates;
+
+
 
 	if(!processReference)
     {
@@ -472,7 +478,7 @@ int main(int argc, char ** argv)
     reference.updateCoeffs(transFactor,cisFactor);
 
 
-	if (!reference.FastLoadHaplotypes(refHaps, max_indiv, max_marker,chr,start,end,window,rsid,processReference,passOnly))
+	if (!reference.FasterLoadHaplotypes(refHaps, max_indiv, max_marker,chr,start,end,window,rsid,processReference,passOnly))
 	{
 		cout << "\n Program Exiting ... \n\n";
 		compStatus="Reference.Panel.Load.Error";
@@ -526,7 +532,7 @@ int main(int argc, char ** argv)
 	{
 	    Imputation thisDataFast(target, reference, outfile, errFile, recFile, phased
                              , gzip, rounds, states, vcfOutput, doseOutput
-                             , onlyRefMarkers,formatVector,updateModel);
+                             , onlyRefMarkers,formatVector,updateModel,unphasedOutput);
         thisDataFast.performImputation(target, reference, golden);
 	}
 

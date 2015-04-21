@@ -32,7 +32,7 @@ class Imputation
             bool em,vcfOutput,doseOutput,onlyRefMarkers;
             bool phased;
             bool gzip;
-            bool GT,DS,GP;
+            bool GT,DS,GP,unphasedOutput;
             vector<bool> format;
             bool includeGwas,updateModel;
             String errFile,recFile;
@@ -82,7 +82,7 @@ class Imputation
         };
        Imputation(HaplotypeSet &tHap,HaplotypeSet &rHap,String &out,String &err,
                    String &rec,bool Ph,bool gz,int rounds, int states,bool vcfoutput,
-                   bool doseoutput, bool onlyrefmarkers,vector<bool> &Format, bool updateMODEL)
+                   bool doseoutput, bool onlyrefmarkers,vector<bool> &Format, bool updateMODEL,bool UnphasedOutput)
         {
 
             updateModel=updateMODEL;
@@ -106,6 +106,7 @@ class Imputation
             GT=Format[0];
             DS=Format[1];
             GP=Format[2];
+            unphasedOutput=UnphasedOutput;
 
 
         };
@@ -122,7 +123,7 @@ class Imputation
         void                            LooOptimalStructure         ( vector<ReducedHaplotypeInfo> &StructureInfo_loo,int loo,HaplotypeSet &rHap);
         void                            Condition                   (HaplotypeSet &rHap, int markerPos,vector<float> &Prob,
                                                                     vector<float> &noRecomProb,
-                                                                    double e, double freq, char observed, double backgroundError, int NoRedStates, ReducedHaplotypeInfo &Info);
+                                                                    double e, double freq, bool observed, double backgroundError, int NoRedStates, ReducedHaplotypeInfo &Info);
         void                            FlushPartialVcf             (HaplotypeSet &rHap,HaplotypeSet &tHap,HaplotypeSet &PartialDosage, string &filename,int &Index);
         void                            MergeFinalVcf               (HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationStatistics &stats,int MaxIndex);
 };

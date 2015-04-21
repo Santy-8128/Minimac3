@@ -19,15 +19,13 @@ void HaplotypeSet::PrintDosageForVcfOutputForIDMaleSamples(IFILE vcfdose,
     bool colonIndex;
     for(int hapId=0;hapId<(int)Dosage.size();hapId++)
         {
-            char a1=ImputedAlleles[hapId][MarkerIndex];
+            bool a1=ImputedAlleles[hapId][MarkerIndex];
             colonIndex=false;
             ifprintf(vcfdose,"\t");
             if(GT)
             {
-                int outAllele1;
-                if(a1==refAllele)
-                    outAllele1=0;
-                else
+                int outAllele1=false;
+                if(a1)
                     outAllele1=1;
                 ifprintf(vcfdose,"%d",outAllele1);
                 colonIndex=true;
@@ -86,22 +84,32 @@ void HaplotypeSet::PrintDosageForVcfOutputForID(IFILE vcfdose, int MarkerIndex,b
     bool colonIndex;
     for(int hapId=0;hapId<(int)Dosage.size()/2;hapId++)
         {
-            char a1=ImputedAlleles[2*hapId][MarkerIndex];
-            char a2=ImputedAlleles[2*hapId+1][MarkerIndex];
+
+            bool a1=ImputedAlleles[2*hapId][MarkerIndex];
+            bool a2=ImputedAlleles[2*hapId+1][MarkerIndex];
             colonIndex=false;
             ifprintf(vcfdose,"\t");
             if(GT)
             {
-                int outAllele1,outAllele2;
-                if(a1==refAllele)
-                    outAllele1=0;
-                else
+                int outAllele1=0,outAllele2=0;
+                if(a1)
                     outAllele1=1;
-                if(a2==refAllele)
-                    outAllele2=0;
-                 else
+
+                if(a2)
                     outAllele2=1;
-                ifprintf(vcfdose,"%d|%d",outAllele1,outAllele2);
+
+                if(!unphasedOutput)
+                    ifprintf(vcfdose,"%d|%d",outAllele1,outAllele2);
+                else
+                {
+                    if((a1^a2)==1)
+                        ifprintf(vcfdose,"0/1");
+                    else if(a1 && a2)
+                        ifprintf(vcfdose,"1/1");
+                    else
+                        ifprintf(vcfdose,"0/0");
+
+                }
                 colonIndex=true;
 
             }
@@ -168,7 +176,7 @@ void HaplotypeSet::InitializePartialDosageForVcfOutputMaleSamples(int NHaps,
     for(int i=0;i<numHaplotypes;i++)
         {
             Dosage[i].resize(NMarkers,3.0);
-            ImputedAlleles[i].resize(NMarkers,0.0);
+            ImputedAlleles[i].resize(NMarkers,false);
 
         }
 
@@ -191,7 +199,7 @@ void HaplotypeSet::InitializePartialDosageForVcfOutput(int NHaps,
     for(int i=0;i<numHaplotypes;i++)
         {
             Dosage[i].resize(NMarkers,3.0);
-            ImputedAlleles[i].resize(NMarkers,0.0);
+            ImputedAlleles[i].resize(NMarkers,false);
 
         }
 
@@ -205,7 +213,7 @@ void HaplotypeSet::InitializePartialDosageForVcfOutput(int NHaps,
 
 
 void HaplotypeSet::SaveDosageForVcfOutputSampleWise(int SamID,string &SampleName, vector<float> &dose1,vector<float> &dose2,
-                                                    vector<char> &impAlleles1,vector<char> &impAlleles2)
+                                                    vector<bool> &impAlleles1,vector<bool> &impAlleles2)
 {
     individualName[SamID]=SampleName;
     Dosage[2*SamID]=dose1;
@@ -215,7 +223,7 @@ void HaplotypeSet::SaveDosageForVcfOutputSampleWise(int SamID,string &SampleName
 }
 
 void HaplotypeSet::SaveDosageForVcfOutputSampleWiseChrX(int SamID,string &SampleName, vector<float> &dose1,
-                                                    vector<char> &impAlleles1)
+                                                    vector<bool> &impAlleles1)
 {
     individualName[SamID]=SampleName;
     Dosage[SamID]=dose1;
@@ -223,7 +231,7 @@ void HaplotypeSet::SaveDosageForVcfOutputSampleWiseChrX(int SamID,string &Sample
 }
 
 
-void HaplotypeSet::SaveDosageForVcfOutput(int hapID,vector<float> dose,vector<char> impAlleles)
+void HaplotypeSet::SaveDosageForVcfOutput(int hapID,vector<float> dose,vector<bool> impAlleles)
 {
 
     Dosage[hapID]=dose;
@@ -234,7 +242,7 @@ void HaplotypeSet::SaveDosageForVcfOutput(int hapID,vector<float> dose,vector<ch
 
 
 
-void HaplotypeSet::reconstructHaplotype(vector<char> &reHaplotypes,int &index)
+void HaplotypeSet::reconstructHaplotype(vector<bool> &reHaplotypes,int &index)
 {
     if((int)reHaplotypes.size()!=numMarkers)
         {
@@ -243,7 +251,7 @@ void HaplotypeSet::reconstructHaplotype(vector<char> &reHaplotypes,int &index)
         }
 
     int markerIndex=0,k;
-    char checkAllele=0;
+    bool checkAllele=false;
 
     for(int j=0;j<(int)ReducedStructureInfo.size();j++)
     {
@@ -308,8 +316,10 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
     }
 
 
-    PrintStartIndex=0;
-    PrintEndIndex=0;
+    PrintStartIndex=99999999;
+    PrintEndIndex=-1;
+
+
     IFILE m3vcfxStream = ifopen(m3vcfFile, "r");
 
     if(m3vcfxStream)
@@ -515,6 +525,9 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
 
 
             tempBlock.uniqueCardinality.resize(tempRepCount,0.0);
+            tempBlock.InvuniqueCardinality.resize(tempRepCount,0.0);
+
+
             tempBlock.uniqueHaps.resize(tempRepCount);
             tempBlock.uniqueIndexMap.resize(numHaplotypes);
 
@@ -533,6 +546,12 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
                 check++;
                 pch = strtok_r (NULL,"\t", &end_str_new);
             }
+
+            for (int i = 0; i < tempRepCount; i++)
+            {
+                tempBlock.InvuniqueCardinality[i]=1.0/(float)tempBlock.uniqueCardinality[i];
+            }
+
 
 
             if(check!=numHaplotypes)
@@ -701,10 +720,8 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
                 {
 
                     char t=tempString[check];
-                    if(t=='0')
-                        tempBlock.uniqueHaps[check].push_back(tempVariant.refAllele);
-                    else
-                        tempBlock.uniqueHaps[check].push_back(tempVariant.altAllele);
+
+                    tempBlock.uniqueHaps[check].push_back(t=='0'? false:true);
 
                 }
 
@@ -771,22 +788,6 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
 
 
 
-}
-
-
-void HaplotypeSet::Create(vector<char> &tempHaplotype)
-{
-
-    numHaplotypes=1;
-    numMarkers=(int)tempHaplotype.size();
-    missing.resize(numMarkers,false);
-    ScaffoldIndex.resize(numMarkers);
-
-    haplotypesUnscaffolded.push_back(tempHaplotype);
-
-    //cout<<" DERP = "<<tempHaplotype.size()<<endl;
-    for(int i=0;i<numMarkers;i++)
-        ScaffoldIndex[i]=i;
 }
 
 
@@ -887,7 +888,7 @@ void HaplotypeSet::writem3vcfFile(String &filename,bool &gzip)
 
             for(k=0;k<reps;k++)
             {
-                ifprintf(m3vcffile,"%d",ReducedStructureInfo[i].uniqueHaps[k][j]==VariantList[j+ReducedStructureInfo[i].startIndex].refAllele? 0:1);
+                ifprintf(m3vcffile,"%d",!ReducedStructureInfo[i].uniqueHaps[k][j]? 0:1);
             }
             ifprintf(m3vcffile, "\n");
         }
@@ -976,7 +977,8 @@ string HaplotypeSet::DetectReferenceFileType(String filename)
     return "NA";
 }
 
-bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMarker,String CHR,
+
+bool HaplotypeSet::FasterLoadHaplotypes(String filename, int maxIndiv, int maxMarker,String CHR,
                                       int START,int END,int WINDOW,bool rsid,bool compressOnly,bool filter)
 {
 
@@ -986,14 +988,6 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
     if(FileType.compare("m3vcf")==0)
     {
         cout<<"\n Format = M3VCF (Minimac3 VCF File) "<<endl;
-//        if(compressOnly)
-//        {
-//            cout << "\n Reference File provided by \"--refHaps\" is an M3VCF file !!! \n";
-//            cout << " M3VCF files cannot be processed further !!! "<<endl;
-//            return false;
-//        }
-
-
         return readm3vcfFile(filename,CHR,START,END,WINDOW);
     }
     else if(FileType.compare("NA")==0)
@@ -1052,8 +1046,7 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
     int     numReadRecords = 0;
 	int numtoBeWrittenRecords = 0;
 	vector<bool> importIndex;
-    int haplotype_index = 0;
-	int numSamplesRead = 0;
+    int numSamplesRead = 0;
 	int notBiallelic = 0;
 	int failFilter = 0;
 	int duplicates = 0;
@@ -1135,11 +1128,10 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
 
 
         if(rsid)
-            currID=record.getIDStr();
+            currID=id;
         else
             currID=(string)strs1.str()+":"+(string)strs2.str();
 
-        //cout<<prevID<<endl;
         if (strlen(refAllele.c_str()) == 1 && strlen(altAllele.c_str()) == 1)
         {
             switch (refAllele[0])
@@ -1153,13 +1145,11 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
                 case 'R': case 'r': break;
                 default:
                 {
-                   cout << "\n WARNING !!! ";
-                   cout << " Reference allele for marker : " << currID << " is : " <<refAllele<<endl;
-//                   cout<<" In VCF File : " << filename;
-//                   cout << "\n VCF reference alleles for SNPs (not INDELs/SVs) can only be A(a), C(c), G(g), or T(t).";
-                   cout << " Variant will be ignored... \n";
-                   flag=1;
-                   inconsistent++;
+                    cout << " WARNING !!! ";
+                    cout << " Reference allele for marker : " << currID << " is : " <<refAllele<<".";
+                    cout << " Variant will be ignored ... \n";
+                    flag=1;
+                    inconsistent++;
                 }
             }
 
@@ -1175,11 +1165,9 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
                     case 'R': case 'r': break;
                     default:
                     {
-                        cout << "\n WARNING !!! ";
-                        cout << " Alternate allele for marker : " <<currID << " is : " <<altAllele<<endl;
-//                        cout<<" In VCF File : " << filename;
-//                        cout << "\n VCF alternate alleles for SNPs (not INDELs/SVs) can only be A(a), C(c), G(g), or T(t).";
-                        cout << " Variant will be ignored... \n";
+                        cout << " WARNING !!! ";
+                        cout << " Alternate allele for marker : " <<currID << " is : " <<altAllele<<".";
+                        cout << " Variant will be ignored ... \n";
                         flag=1;
                     }
                 }
@@ -1204,18 +1192,22 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
             if(refAllele==PrefrefAllele && altAllele==PrevaltAllele)
             {
 
-                cout << " WARNING !!! Duplicate Variant found chr:"
+                cout <<  " WARNING !!!  Duplicate Variant found chr:"
                 <<(string)strs3.str()+":"+
                 (string)strs4.str()<<" with identical REF = "
                 <<refAllele
-                 <<" and ALT = "<<altAllele <<"\n";
+                 <<" and ALT = "<<altAllele <<".";
                 duplicates++;
+                if(!Duplicates)
+                {
+                    cout << "\n              Repeated Instances will be ignored ... ";
+                    flag=1;
+                }
+                cout<<endl;
             }
 
         }
 
-
-//        prevSNP=1-isInDel;
         prevID=currID;
         PrefrefAllele=refAllele;
         PrevaltAllele=altAllele;
@@ -1237,9 +1229,6 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
             }
 
         }
-
-//cout<<fixCno<<"\t"<<cno<<endl;
-
 
 		if (flag == 0)
 		{
@@ -1278,7 +1267,7 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
 	std::cout << " Number of Markers with more than Two Alleles        : " << notBiallelic << endl;
 	std::cout << " Number of Markers failing FILTER = PASS             : " << failFilter << endl;
     std::cout << " Number of Markers with inconsistent Ref/Alt Allele  : " << inconsistent << endl;
-    std::cout << " Number of Markers with duplicate ID/Position        : " << duplicates << endl;
+    std::cout << " Number of Markers with duplicate ID:POS:REF:ALT     : " << duplicates << endl;
     std::cout << " Number of Insertions                                : " << insertions << endl;
 	std::cout << " Number of Deletions                                 : " << deletions << endl;
 
@@ -1353,263 +1342,343 @@ bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMark
 
     std::cout <<"\n Starting to load data ...";
 
+    std::cout <<"\n\n Number of Threads to be Used = "<<CPU<<endl;
+
 
 
     int    blockSize = 500;
     int    bufferSize = 10000;
-    int LastflushPos=0;
-    vector<int> index(numHaplotypes),oldIndex;
-    vector<int> previousDifference(numHaplotypes);
-    vector<int> previousPredecessor(numHaplotypes);
-    vector<int> firstDifference(numHaplotypes-1,0);
-    vector<int> cost(bufferSize+1,0);
-    vector<int> bestSlice(bufferSize+1,0);
-    vector<int> bestComplexity(bufferSize+1,0);
-    vector<vector<int> > bestIndex(bufferSize+1);
-
-    findUnique RefUnique;
-
-    RefUnique.updateCoeffs(transFactor,cisFactor);
-    vector<String> Haplotypes(numHaplotypes);
-    double blockedCost = 0.0;
-    for(int i=0;i<numHaplotypes;i++)
-        index[i]=i;
-    individualName.resize(numSamples);
+       individualName.resize(numSamples);
     // open file again to start loading the data in the variable haplotype.
 
     cout<<endl;
-	inFile.open(filename, header);
-	inFile.setSiteOnly(false);
-	int numWrittenRecords = 0;
-	int readIndex = -1;
-	while (inFile.readRecord(record) && numWrittenRecords<numMarkers)
+
+
+//     #pragma omp parallel for
+
+    VcfFileReader inFileBuffer;
+    VcfHeader headerBuffer;
+    VcfRecord recordBuffer;
+    int readIndex = -1;
+
+    inFileBuffer.open(filename, headerBuffer);
+    inFileBuffer.setSiteOnly(false);
+
+    vector<vector<String> > Haplotypes(CPU);
+
+
+
+    int currentPiece=0;
+
+    for(currentPiece=0;currentPiece<CPU;currentPiece++)
+    {
+        Haplotypes[currentPiece].resize(numHaplotypes);
+    }
+    currentPiece=0;
+
+
+    vector<int> BufferPosList(CPU);
+
+
+    int NoMarkersWritten=1;
+    int NoMarkersRead=0;
+
+    BufferPosList[0]=1;
+    for(int BufferNo=1;BufferNo<CPU;BufferNo++)
+    {
+        BufferPosList[BufferNo]= BufferPosList[BufferNo-1]+(bufferSize-1);
+
+    }
+    ReducedStructureInfoBuffer.clear();
+    ReducedStructureInfoBuffer.resize(CPU);
+
+    ReducedStructureInfo.clear();
+
+
+    while (inFileBuffer.readRecord(recordBuffer) && NoMarkersRead<numMarkers)
 	{
 		// work only with bi-allelic markers
 		readIndex++;
 
+
 		if (importIndex[readIndex])
 		{
-            if (numWrittenRecords % bufferSize == 0)
+            if (Haplotypes[currentPiece][0].Length()==1)
                 {
-                    printf("  Loading markers %d - %d  out of %d markers to be loaded... [%.1f%%] "
-                    , LastflushPos + 1, min(LastflushPos+bufferSize,numMarkers),numMarkers,100*(double)(LastflushPos + 1)/numMarkers);
+                    printf("  Loading markers %d - %d  out of %d markers to be loaded... [%.1f%%] ",
+                           NoMarkersWritten+currentPiece*(bufferSize-1),
+                           min(NoMarkersWritten+(currentPiece+1)*(bufferSize-1),numMarkers),numMarkers,
+                           100*(double)(NoMarkersWritten+currentPiece*(bufferSize-1))/numMarkers);
                     cout<<endl;
                 }
 
+                NoMarkersRead++;
 
-//			 [%.1f\%]
-//			std::cout << "  " << LastflushPos + 1 << "-"<<min(LastflushPos+bufferSize,numMarkers)  <<" out of " << numMarkers << " markers to be loaded..."<<endl;
+                string refAllele = recordBuffer.getRefStr();
+                string altAllele = recordBuffer.getAltStr();
+                char Rallele,Aallele;
 
-
-            string refAllele = record.getRefStr();
-			string altAllele = record.getAltStr();
-			char Rallele,Aallele;
-
-			if (strlen(refAllele.c_str()) == 1 && strlen(altAllele.c_str()) == 1)
-				{
-				    switch (refAllele[0])
+                if (strlen(refAllele.c_str()) == 1 && strlen(altAllele.c_str()) == 1)
                     {
-                        case 'A': case 'a': Rallele = 1; break;
-                        case 'C': case 'c': Rallele = 2; break;
-                        case 'G': case 'g': Rallele = 3; break;
-                        case 'T': case 't': Rallele = 4; break;
-                        case 'D': case 'd': Rallele = 5; break;
-                        case 'I': case 'i': Rallele = 6; break;
-                        case 'R': case 'r': Rallele = 7; break;
-                        default:
+                        switch (refAllele[0])
                         {
-                                   cout << "\n\n Data Inconsistency !!! \n";
-                                   cout << " Error with reference allele for marker : " << record.getIDStr() << " in VCF File : " << filename;
-                                   cout << "\n VCF reference alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
-                                   cout << " " << record.getIDStr() << " has " << refAllele << endl;
-                                   cout << "\n Program Aborting ... \n\n";
-                                   return false;
+                            case 'A': case 'a': Rallele = 1; break;
+                            case 'C': case 'c': Rallele = 2; break;
+                            case 'G': case 'g': Rallele = 3; break;
+                            case 'T': case 't': Rallele = 4; break;
+                            case 'D': case 'd': Rallele = 5; break;
+                            case 'I': case 'i': Rallele = 6; break;
+                            case 'R': case 'r': Rallele = 7; break;
+                            default:
+                            {
+                                       cout << "\n\n Data Inconsistency !!! \n";
+                                       cout << " Error with reference allele for marker : " << recordBuffer.getIDStr() << " in VCF File : " << filename;
+                                       cout << "\n VCF reference alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
+                                       cout << " " << recordBuffer.getIDStr() << " has " << refAllele << endl;
+                                       cout << "\n Program Aborting ... \n\n";
+                                       abort();
+//                                       return false;
+                            }
                         }
-                    }
 
-                    switch (altAllele[0])
-                    {
-                        case 'A': case 'a': Aallele = 1; break;
-                        case 'C': case 'c': Aallele = 2; break;
-                        case 'G': case 'g': Aallele = 3; break;
-                        case 'T': case 't': Aallele = 4; break;
-                        case 'D': case 'd': Aallele = 5; break;
-                        case 'I': case 'i': Aallele = 6; break;
-                        case 'R': case 'r': Aallele = 7; break;
-                        default:
+                        switch (altAllele[0])
                         {
-                                   cout << "\n\n Data Inconsistency !!! \n";
-                                   cout << " Error with alternate allele for marker : " << record.getIDStr() << " in VCF File : " << filename;
-                                   cout << "\n VCF alternate alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
-                                   cout << " " << record.getIDStr() << " has " << altAllele << endl;
-                                   cout << "\n Program Aborting ... \n\n";
-                                   return false;
+                            case 'A': case 'a': Aallele = 1; break;
+                            case 'C': case 'c': Aallele = 2; break;
+                            case 'G': case 'g': Aallele = 3; break;
+                            case 'T': case 't': Aallele = 4; break;
+                            case 'D': case 'd': Aallele = 5; break;
+                            case 'I': case 'i': Aallele = 6; break;
+                            case 'R': case 'r': Aallele = 7; break;
+                            default:
+                            {
+                                       cout << "\n\n Data Inconsistency !!! \n";
+                                       cout << " Error with alternate allele for marker : " << recordBuffer.getIDStr() << " in VCF File : " << filename;
+                                       cout << "\n VCF alternate alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
+                                       cout << " " << recordBuffer.getIDStr() << " has " << altAllele << endl;
+                                       cout << "\n Program Aborting ... \n\n";
+                                       abort();
+                            }
                         }
+
+
                     }
 
-
-				}
-
-			else
-				{
-				    Rallele = 7;
-				    if(strlen(refAllele.c_str())<strlen(altAllele.c_str()))
-                        Aallele=6;
-                    else
-                        Aallele=5;
-				}
-
-            refAlleleList.push_back(Rallele);
-            VariantList[numWrittenRecords].refAllele=Rallele;
-            VariantList[numWrittenRecords].altAllele=Aallele;
-            VariantList[numWrittenRecords].refAlleleString=refAllele;
-            VariantList[numWrittenRecords].altAlleleString=altAllele;
-            haplotype_index = 0;
-            for (int i = 0; i<(numSamples); i++)
-            {
-                if(record.getNumGTs(i)==0)
-                {
-                    std::cout << "\n Empty Value for Individual : " << individualName[i] << " at Marker : " << VariantList[numWrittenRecords].name << endl;
-                    std::cout << " Most probably a corrupted VCF file. Please check input VCF file !!! " << endl;
-                    return false;
-                }
-                if(record.getNumGTs(i)==1 && finChromosome!="X")
-                {
-                    std::cout << "\n Single Autosomal Haplotype for Individual : " << individualName[i] << " at Marker : " << VariantList[numWrittenRecords].name << endl;
-                    std::cout << " Most probably a corrupted VCF file. Please check input VCF file !!! " << endl;
-                    return false;
-                }
-                for (int j = 0; j<record.getNumGTs(i); j++)
-                {
-
-                    int alleleIndex = record.getGT(i, j);
-                    if (alleleIndex<0)
+                else
                     {
-                        std::cout << "\n Missing Value for Individual : " << individualName[i] << " at Marker : " << VariantList[numWrittenRecords].name << endl;
-                        return false;
+                        Rallele = 7;
+                        if(strlen(refAllele.c_str())<strlen(altAllele.c_str()))
+                            Aallele=6;
+                        else
+                            Aallele=5;
                     }
 
-                    else
+                refAlleleList.push_back(Rallele);
+                VariantList[NoMarkersRead-1].refAllele=Rallele;
+                VariantList[NoMarkersRead-1].altAllele=Aallele;
+                VariantList[NoMarkersRead-1].refAlleleString=refAllele;
+                VariantList[NoMarkersRead-1].altAlleleString=altAllele;
+                int haplotype_index = 0;
+                for (int i = 0; i<(numSamples); i++)
+                {
+                    int NoGt=recordBuffer.getNumGTs(i);
+
+                    if(NoGt==0)
                     {
-                        if(haplotype_index>=numHaplotypes && finChromosome=="X")
+                        std::cout << "\n Empty Value for Individual : " << individualName[i] << " at Marker : " << VariantList[NoMarkersRead-1].name << endl;
+                        std::cout << " Most probably a corrupted VCF file. Please check input VCF file !!! " << endl;
+                        abort();
+                    }
+                    else if(NoGt==1 && finChromosome!="X")
+                    {
+                        std::cout << "\n Single Autosomal Haplotype for Individual : " << individualName[i] << " at Marker : " << VariantList[NoMarkersRead-1].name << endl;
+                        std::cout << " Most probably a corrupted VCF file. Please check input VCF file !!! " << endl;
+                        abort();
+                    }
+                    for (int j = 0; j<NoGt; j++)
+                    {
+
+                        int alleleIndex = recordBuffer.getGT(i, j);
+                        if (alleleIndex<0)
                         {
-                            cout << "\n Error in Reference VCF File for Chromosome X !!! "<<endl;
-                            cout << "\n Marker : " << VariantList[0].name << " has "<<numHaplotypes <<" haplotypes while ";
-                            cout << "Marker : " << VariantList[numWrittenRecords].name << " has "<< haplotype_index+1<<" haplotypes."<<endl;
-                            cout << " VCF file seems to have both Pseudo-Autosomal region (PAR) and non-PAR of chromosome X. \n";
-                            cout << " Please use only either of the two regions ... \n";
-                            cout << " See web-page for Minimac3 (Chromosome X Imputation) for more details ...\n";
-                            cout << " Program Aborting ... "<<endl;
-                            return false;
+                            std::cout << "\n Missing Value for Individual : " << individualName[i] << " at Marker : " << VariantList[NoMarkersRead-1].name << endl;
+                            abort();
                         }
-                        Haplotypes[haplotype_index]+= (char)('0'+record.getGT(i, j));
-                        haplotype_index++;
+
+                        else
+                        {
+                            if(haplotype_index>=numHaplotypes && finChromosome=="X")
+                            {
+                                cout << "\n Error in Reference VCF File for Chromosome X !!! "<<endl;
+                                cout << "\n Marker : " << VariantList[0].name << " has "<<numHaplotypes <<" haplotypes while ";
+                                cout << "Marker : " << VariantList[NoMarkersRead-1].name << " has "<< haplotype_index+1<<" haplotypes."<<endl;
+                                cout << " VCF file seems to have both Pseudo-Autosomal region (PAR) and non-PAR of chromosome X. \n";
+                                cout << " Please use only either of the two regions ... \n";
+                                cout << " See web-page for Minimac3 (Chromosome X Imputation) for more details ...\n";
+                                cout << " Program Aborting ... "<<endl;
+                                abort();
+                            }
+                            Haplotypes[currentPiece][haplotype_index]+= (char)('0'+alleleIndex);
+                            haplotype_index++;
+                        }
+
                     }
 
+
                 }
 
-
-            }
-
-            if(haplotype_index<(numHaplotypes-1) && finChromosome=="X")
-            {
-                cout << "\n Error in Reference VCF File for Chromosome X !!! "<<endl;
-                cout << "\n Marker : " << VariantList[0].name << " has "<<numHaplotypes <<" haplotypes while ";
-                cout << "Marker : " << VariantList[numWrittenRecords].name << " has "<< haplotype_index+1<<" haplotypes."<<endl;
-                cout << " VCF file seems to have both Pseudo-Autosomal region (PAR) and non-PAR of chromosome X. \n";
-                cout << " Please use only either of the two regions ... \n";
-                cout << " See web-page for Minimac3 (Chromosome X Imputation) for more details ...\n";
-                cout << " Program Aborting ... "<<endl;
-                return false;
-            }
-            numWrittenRecords++;
-            int length = Haplotypes[0].Length();
-            vector<int> offsets(3,0);
-			for (int i = 0; i < numHaplotypes; i++)
-                offsets[Haplotypes[i][length - 1] - '0' + 1]++;
-            offsets[2]+=offsets[1];
-//            cout<<VariantList[numWrittenRecords].name<<endl;
-
-//            int bal=*max_element(index.begin(),index.end());
-//            cout<<bal<<endl;
-
-
-            oldIndex = index;
-            for (int i = 0; i < numHaplotypes; i++)
+                if(haplotype_index<(numHaplotypes-1) && finChromosome=="X")
                 {
-                    index[offsets[Haplotypes[oldIndex[i]][length - 1] - '0']++] = oldIndex[i];
-//                    cout<<" INDEX [ "<<i<<
+                    cout << "\n Error in Reference VCF File for Chromosome X !!! "<<endl;
+                    cout << "\n Marker : " << VariantList[0].name << " has "<<numHaplotypes <<" haplotypes while ";
+                    cout << "Marker : " << VariantList[NoMarkersRead-1].name << " has "<< haplotype_index+1<<" haplotypes."<<endl;
+                    cout << " VCF file seems to have both Pseudo-Autosomal region (PAR) and non-PAR of chromosome X. \n";
+                    cout << " Please use only either of the two regions ... \n";
+                    cout << " See web-page for Minimac3 (Chromosome X Imputation) for more details ...\n";
+                    cout << " Program Aborting ... "<<endl;
+                    abort();
                 }
-//            for (int i = 0; i < numHaplotypes; i++)
-//                {
-////                    index[offsets[Haplotypes[oldIndex[i]][length - 1] - '0']++] = oldIndex[i];
-//                    cout<<" INDEX [ "<<i<<" = "<<index[i]<<endl;
-//                }
-//
-//                bal=*max_element(oldIndex.begin(),oldIndex.end());
 
-            RefUnique.UpdateDeltaMatrix(Haplotypes, index, firstDifference, length, blockSize,
-                           oldIndex, previousPredecessor, previousDifference);
-            RefUnique.AnalyzeBlocks(index, firstDifference, length, blockSize,
-                       cost, bestSlice, bestComplexity, bestIndex);
-//             bal=*max_element(oldIndex.begin(),oldIndex.end());
-//            cout<<bal<<endl;
 
-            if (Haplotypes[0].Length() == bufferSize)
-            {
-                blockedCost += RefUnique.FlushBlocks(optEndPoints,ReducedStructureInfo,VariantList,LastflushPos, Haplotypes, cost,
-                                            bestComplexity, bestSlice, bestIndex);
-                LastflushPos+=bufferSize;
-                LastflushPos--;
-                vector<String> tempHaplotypes(numHaplotypes);
-                for (int i = 0; i < numHaplotypes; i++)
+                int NewPiece=CPU;
+                if (Haplotypes[currentPiece][0].Length() == bufferSize)
                 {
-                    tempHaplotypes[i]=Haplotypes[i][Haplotypes[i].Length()-1];
-                    Haplotypes[i]=tempHaplotypes[i];
+
+                    NewPiece=(currentPiece+1)%CPU;
+                    vector<String> tempHaplotypes(numHaplotypes);
+                    if(NewPiece!=0)
+                    {
+                        for (int i = 0; i < numHaplotypes; i++)
+                        {
+                            tempHaplotypes[i]=Haplotypes[currentPiece][i][Haplotypes[currentPiece][i].Length()-1];
+                            Haplotypes[NewPiece][i]=tempHaplotypes[i];
+                        }
+                        currentPiece=NewPiece;
+                    }
                 }
 
+                if(NewPiece==0 || NoMarkersRead==numMarkers)
+                {
 
-                vector<int> tempoffsets(3,0);
-                for (int i = 0; i < numHaplotypes; i++)
-                    tempoffsets[Haplotypes[i][0] - '0' + 1]++;
-                tempoffsets[2]+=tempoffsets[1];
+                    #pragma omp parallel for
+                    for(int ThisPiece=0;ThisPiece<=currentPiece;ThisPiece++)
+                    {
 
-                for (int i = 0; i < numHaplotypes; i++)
-                    index[tempoffsets[Haplotypes[i][0] - '0']++] = i;
-
+                        int LastflushPos=BufferPosList[ThisPiece]-1;
+                        printf("     Processing Reference Chunk %d for M3VCF ... \n",ThisPiece+1);
 
 
+                        vector<int> index(numHaplotypes),oldIndex;
+                        vector<int> previousDifference(numHaplotypes);
+                        vector<int> previousPredecessor(numHaplotypes);
+                        vector<int> firstDifference(numHaplotypes-1,0);
+                        vector<int> cost(bufferSize+1,0);
+                        vector<int> bestSlice(bufferSize+1,0);
+                        vector<int> bestComplexity(bufferSize+1,0);
+                        vector<vector<int> > bestIndex(bufferSize+1);
 
-            }
+                //        vector<ReducedHaplotypeInfo> ReducedStructureInfoTemp;
+                        ReducedStructureInfoBuffer[ThisPiece].clear();
+
+                        findUnique RefUnique;
+
+                        RefUnique.updateCoeffs(transFactor,cisFactor);
+                        double blockedCost = 0.0;
+
+                        for(int i=0;i<numHaplotypes;i++)
+                            index[i]=i;
+
+
+                        for(int length=1;length<=Haplotypes[ThisPiece][0].Length();length++)
+                        {
+
+
+                            vector<int> offsets(3,0);
+                            for (int i = 0; i < numHaplotypes; i++)
+                                offsets[Haplotypes[ThisPiece][i][length - 1] - '0' + 1]++;
+                            offsets[2]+=offsets[1];
+
+
+                            oldIndex = index;
+                            for (int i = 0; i < numHaplotypes; i++)
+                                {
+                                    index[offsets[Haplotypes[ThisPiece][oldIndex[i]][length - 1] - '0']++] = oldIndex[i];
+                                }
+
+                            RefUnique.UpdateDeltaMatrix(Haplotypes[ThisPiece], index, firstDifference, length, blockSize,
+                                   oldIndex, previousPredecessor, previousDifference);
+
+                            RefUnique.AnalyzeBlocks(index, firstDifference, length, blockSize,
+                               cost, bestSlice, bestComplexity, bestIndex);
+
+                        }
+
+
+                        if(Haplotypes[ThisPiece][0].Length()>1)
+                            blockedCost += RefUnique.FlushBlocks(ReducedStructureInfoBuffer[ThisPiece],
+                                                                VariantList,LastflushPos,
+                                                                Haplotypes[ThisPiece], cost,
+                                                                bestComplexity, bestSlice, bestIndex);
+
+                    }
+
+
+                    cout<<endl;
+                    NoMarkersWritten+=(CPU*(bufferSize-1));
+
+
+                    BufferPosList[0]=NoMarkersWritten;
+                    for(int BufferNo=1;BufferNo<CPU;BufferNo++)
+                    {
+                        BufferPosList[BufferNo]= BufferPosList[BufferNo-1]+(bufferSize-1);
+
+                    }
+
+                    vector<String> tempHaplotypes(numHaplotypes);
+                    for (int i = 0; i < numHaplotypes; i++)
+                    {
+                        tempHaplotypes[i]=Haplotypes[currentPiece][i][Haplotypes[currentPiece][i].Length()-1];
+                        Haplotypes[0][i]=tempHaplotypes[i];
+                    }
+
+                    for(int ThisPiece=0;ThisPiece<CPU;ThisPiece++)
+                    {
+                        for(int jj=0;jj<(int)ReducedStructureInfoBuffer[ThisPiece].size();jj++)
+                            {
+                                ReducedStructureInfo.push_back(ReducedStructureInfoBuffer[ThisPiece][jj]);
+                            }
+                        ReducedStructureInfoBuffer[ThisPiece].clear();
+
+                    }
+
+                    currentPiece=0;
+
+
+                }
+
         }
-	}
 
-    if (Haplotypes[0].Length() > 1)
-      {
-      blockedCost +=  RefUnique.FlushBlocks(optEndPoints, ReducedStructureInfo,VariantList, LastflushPos, Haplotypes, cost,
-                                  bestComplexity, bestSlice, bestIndex);
 
-//      double originalCost = 1.0 * (double) markerName.size() * (double)Haplotypes.size();
+    }
 
-//      printf("\n After %d markers ...\n", (int)markerName.size());
-//      printf("   Original cost = %.0f\n", originalCost);
-//      printf("        New cost = %.0f\n", blockedCost);
-//      printf("        Speed-up = %.1f\n", originalCost / (blockedCost + 1e-6));
-      }
+
+
+
 
     std::cout << "\n Number of Markers Recorded                          : " << markerName.size() << endl;
     std::cout << " Number of Haplotypes Recorded                       : " << numHaplotypes << endl;
+
+
+
 
     optEndPoints.clear();
     int i;
     for(i=0;i<(int)ReducedStructureInfo.size();i++)
         {
-//            cout<<i<<"\t"<<ReducedStructureInfo[i].startIndex<<"\t"<<ReducedStructureInfo[i].endIndex<<endl;
             optEndPoints.push_back(ReducedStructureInfo[i].startIndex);
         }
     optEndPoints.push_back(ReducedStructureInfo[i-1].endIndex);
 
-    //cout<<" NOW WHAT = "<<optEndPoints.back()<<endl;
 
     if(individualName.size()==0)
     {
@@ -2031,20 +2100,20 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 
     finChromosome=cno;
 	vector<int> knownPosition;
+	knownPosition.clear();
 	int counter = 0;
 	missing.resize(refMarkerCount, true);
 	ScaffoldIndex.resize(refMarkerCount, -1);
     UnScaffoldIndex.resize(VariantList.size(), -1);
     AllMaleTarget=false;
-//  string name;
-//    int bp;
-//    string chr;
-//    char refAllele,altAllele;
-//string refAlleleString,altAlleleString;
+
     int flag;
 	int markerIndex=0;
 	vector<string> newMarkerName;
+	newMarkerName.clear();
+    vector<bool> RefAlleleSwap;
 
+    RefAlleleSwap.clear();
 
 	for (int j = 0; j<(int)VariantList.size(); j++)
 	{
@@ -2081,9 +2150,22 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
         {
             knownPosition.push_back(counter);
             newMarkerName.push_back(markerName[j]);
+
+            if(rHap.VariantList[counter].refAlleleString==VariantList[j].refAlleleString)
+                RefAlleleSwap.push_back(false);
+            else
+                {
+
+                    RefAlleleSwap.push_back(true);
+                    string tempa=VariantList[j].refAlleleString;
+                    VariantList[j].refAlleleString=VariantList[j].altAlleleString;
+                    VariantList[j].altAlleleString=tempa;
+                }
+
             missing[counter] = false;
             UnScaffoldIndex[markerIndex]=counter;
             ScaffoldIndex[counter]=markerIndex++;
+
             counter++;
 		}
 		else
@@ -2093,8 +2175,9 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
         }
 
 	}
+
 	numHaplotypes = 0;
-			numMarkers = 0;
+    numMarkers = 0;
 
 	std::cout << " Number of Markers overlapping with Reference List   : " << newMarkerName.size() << endl << endl;
 
@@ -2172,11 +2255,15 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 
 	//haplotypes.resize(numHaplotypes);
 	haplotypesUnscaffolded.resize(numHaplotypes);
+	MissingSampleUnscaffolded.resize(numHaplotypes);
+
+
 
 
 	for (int i = 0; i<numHaplotypes; i++)
 	{
-		haplotypesUnscaffolded[i].resize(markerName.size(), 0);
+		haplotypesUnscaffolded[i].resize(markerName.size(), false);
+        MissingSampleUnscaffolded[i].resize(markerName.size(), false);
     }
 
 	// initialize this to 0 again to read each marker from each line of vcf file.
@@ -2247,10 +2334,6 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
                         return false;
                     }
 
-//
-//        bool PseudoAutosomal;
-//        bool AllMaleTarget;
-
                     if(rHap.PseudoAutosomal)
                     {
                         if(record.getNumGTs(i)!=2)
@@ -2286,26 +2369,39 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 
 
                     }
-                for (int j = 0; j<record.getNumGTs(i); j++)
+
+                    for (int j = 0; j<record.getNumGTs(i); j++)
                     {
 
                         int alleleIndex = record.getGT(i, j);
                         if (alleleIndex<0)
                         {
-                            //std::cout << "\n Missing Value for Individual : " << individualName[i] << " at Marker : " << record.getIDStr() << endl;
-                            haplotypesUnscaffolded[haplotype_index][numtoBeWrittenRecords] = 0;
-                            haplotype_index++;
-                            //return false;
+                            MissingSampleUnscaffolded[haplotype_index][numtoBeWrittenRecords] = true;
                         }
                         else
                         {
 
-                            const char *alleles = record.getAlleles(record.getGT(i, j));
-                            char allele = convertAlleles(record.getIDStr(), individualName[i], alleles, refAllele.c_str(), altAllele.c_str());
-                            //haplotypes[haplotype_index][knownPosition[readIndex]] = allele;
-                            haplotypesUnscaffolded[haplotype_index][numtoBeWrittenRecords] = allele;
-                            haplotype_index++;
+                            if(!RefAlleleSwap[numtoBeWrittenRecords])
+                            {
+                                if(alleleIndex==1)
+                                {
+                                    haplotypesUnscaffolded[haplotype_index][numtoBeWrittenRecords] = true;
+                                }
+                            }
+                            else
+                            {
+                                if(alleleIndex==0)
+                                {
+                                    haplotypesUnscaffolded[haplotype_index][numtoBeWrittenRecords] = true;
+                                }
+                            }
+
+
                         }
+
+                        haplotype_index++;
+
+
 
                     }
                 }
@@ -2383,127 +2479,759 @@ void HaplotypeSet::calculateFreq()
 
 }
 
-char HaplotypeSet::getScaffoldedHaplotype(int sample,int marker)
+void HaplotypeSet::CalculateFreq()
+{
+
+    AlleleFreq.resize(numMarkers, 0.0);
+
+    int i,j,k;
+    for(k=0;k<(int)ReducedStructureInfo.size();k++)
+    {
+        for (i = 0; i<(int)ReducedStructureInfo[k].uniqueCardinality.size(); i++)
+        {
+            for(j=ReducedStructureInfo[k].startIndex;j<ReducedStructureInfo[k].endIndex;j++)
+            {
+                if(ReducedStructureInfo[k].uniqueHaps[i][j-ReducedStructureInfo[k].startIndex])
+                    {
+//                         cout<<ReducedStructureInfo[k].uniqueHaps[i][j-ReducedStructureInfo[k].startIndex]<<"\t"<<AlleleFreq[j]<<endl;
+
+                        AlleleFreq[j]+=ReducedStructureInfo[k].uniqueCardinality[i];
+
+//                        cout<<" WELL ="<<ReducedStructureInfo[k].uniqueHaps[i][j-ReducedStructureInfo[k].startIndex]<<"\t"<<AlleleFreq[j]<<endl;
+
+                    }
+            }
+//abort();
+
+            if(k==(int)ReducedStructureInfo.size()-1)
+                if(ReducedStructureInfo[k].uniqueHaps[i][j-ReducedStructureInfo[k].startIndex])
+                    AlleleFreq[j]+=ReducedStructureInfo[k].uniqueCardinality[i];
+        }
+    }
+	major.resize(numMarkers, false);
+//	minor.resize(numMarkers, 0);
+
+	for (int i = 0; i<numMarkers; i++)
+	{
+
+		AlleleFreq[i] /= (double)numHaplotypes;
+
+		if (AlleleFreq[i]>0.5)
+        {
+            major[i] = true;
+            VariantList[i].MinAlleleString=VariantList[i].refAlleleString;
+            VariantList[i].MajAlleleString=VariantList[i].altAlleleString;
+        }
+        else
+        {
+            VariantList[i].MinAlleleString=VariantList[i].altAlleleString;
+            VariantList[i].MajAlleleString=VariantList[i].refAlleleString;
+        }
+	}
+
+}
+
+bool HaplotypeSet::getScaffoldedHaplotype(int sample,int marker)
 {
 
    if(missing[marker]==true)
-        return 0;
+        {
+            return false;
+        }
    else
         return haplotypesUnscaffolded[sample][ScaffoldIndex[marker]];
 }
 
-
-
-bool HaplotypeSet::LoadSnpList(String filename)
+void HaplotypeSet::Create(vector<bool> &tempHaplotype)
 {
 
-	std::cout << "\n Loading Marker List from File                       : " << filename << endl;
+    numHaplotypes=1;
+    numMarkers=(int)tempHaplotype.size();
+    missing.resize(numMarkers,false);
+    ScaffoldIndex.resize(numMarkers);
+    vector<bool> tempMissin(numMarkers,false);
 
-    if(filename=="")
-    {
-        cout<<"\n No File for Marker List found !!!! \n";
-        cout<<" Please use \"--snps\" parameter if \"--haps\" is a MaCH file ... \n";
-        cout<<endl;
-        return false;
-    }
 
-    IFILE ifs = ifopen(filename, "r");
-    string line;
-    if(ifs)
-    {
-        while ((ifs->readLine(line))!=-1)
-        {
-            markerName.push_back(line);
-            line.clear();
+    haplotypesUnscaffolded.clear();
+    MissingSampleUnscaffolded.clear();
 
-        }
-    }
-    else
-    {
-        cout<<"\n Following File File Not Available : "<<filename<<endl;
-        return false;
-    }
+    haplotypesUnscaffolded.push_back(tempHaplotype);
+    MissingSampleUnscaffolded.push_back(tempMissin);
 
-	ifclose(ifs);
-	return true;
+
+    for(int i=0;i<numMarkers;i++)
+        ScaffoldIndex[i]=i;
+
 
 }
 
 
-char HaplotypeSet::convertAlleles(string markerId, string indivId, const char *alleles, string refAlleleString, string altAlleleString)
+bool HaplotypeSet::getMissingScaffoldedHaplotype(int sample,int marker)
 {
 
-	char allele;
+   if(missing[marker]==true)
+        {
+            return true;
+        }
+   else
+        return MissingSampleUnscaffolded[sample][ScaffoldIndex[marker]];
+}
 
-	if (strlen(refAlleleString.c_str()) == 1 && strlen(altAlleleString.c_str()) == 1)
-		switch (alleles[0])
+
+bool HaplotypeSet::FastLoadHaplotypes(String filename, int maxIndiv, int maxMarker,String CHR,
+                                      int START,int END,int WINDOW,bool rsid,bool compressOnly,bool filter)
+{
+
+
+    string FileType=DetectReferenceFileType(filename);
+
+    if(FileType.compare("m3vcf")==0)
+    {
+        cout<<"\n Format = M3VCF (Minimac3 VCF File) "<<endl;
+//        if(compressOnly)
+//        {
+//            cout << "\n Reference File provided by \"--refHaps\" is an M3VCF file !!! \n";
+//            cout << " M3VCF files cannot be processed further !!! "<<endl;
+//            return false;
+//        }
+
+
+        return readm3vcfFile(filename,CHR,START,END,WINDOW);
+    }
+    else if(FileType.compare("NA")==0)
+    {
+        cout<<"\n Following File File Not Available : "<<filename<<endl;
+        return false;
+    }
+    else if(FileType.compare("Invalid")==0)
+    {
+
+        cout << "\n Reference File provided by \"--refHaps\" must be a VCF or M3VCF file !!! \n";
+        cout << " Please check the following file : "<<filename<<endl;
+        return false;
+    }
+    cout<<"\n Format = VCF (Variant Call Format) "<<endl;
+    vcfType=true;
+
+    optEndPoints.clear();
+	VcfFileReader inFile;
+	VcfHeader header;
+	VcfRecord record;
+
+	if (!inFile.open(filename, header))
 	{
-		case 'A': case 'a': allele = 1; break;
-		case 'C': case 'c': allele = 2; break;
-		case 'G': case 'g': allele = 3; break;
-		case 'T': case 't': allele = 4; break;
-		case 'D': case 'd': allele = 5; break;
-		case 'I': case 'i': allele = 6; break;
-		case 'R': case 'r': allele = 7; break;
-		default:
-		{
-				   cout << "\n Data Inconsistency !!! \n";
-				   cout << " Error with alleles for Marker : " << markerId << " and Individual : ";
-				   cout << indivId << " in Reference VCF File. " << endl;
-				   cout << " Alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
-				   cout << " Genotype of Individual : " << indivId << " at marker " << markerId << " is " << alleles << endl;
-				   cout << " Program Aborting ... \n\n";
-				   abort();
-		}
+		cout << "\n Program could NOT open file : " << filename << endl;
+		return false;
 	}
-	else
-	{
-		string tempAllele(alleles);
-		if (strlen(refAlleleString.c_str())<strlen(altAlleleString.c_str()))
-		{
-			if (refAlleleString.compare(tempAllele) == 0)
-				allele = 7;
-			else if (altAlleleString.compare(tempAllele) == 0)
-				allele = 6;
-			else
-			{
-				cout << "\n Data Inconsistency !!! \n";
-				cout << " Genotype of Individual : " << indivId << " at marker " << markerId << " is " << alleles << endl;
-				cout << " It does NOT match the Reference Allele : " << refAlleleString << " nor the Alternate Allele : " << altAlleleString << endl;
-				cout << " Program supports only bi-allelic markers \n";
-				cout << " Program Aborting ... \n\n";
-				abort();
-			}
 
+    std::cout << "\n Loading Reference Haplotype Set from VCF File       : " << filename << endl;
+//    if(END==0)
+//        END=300000000;
+    int OrigStartPos=START;
+    int OrigEndPos=END;
+    if (WINDOW > 0)
+    {
+        if (START-WINDOW < 0)
+            START = 0;
+        else
+            START -= WINDOW;
+
+        END += WINDOW;
+    }
+    stringstream strs;
+    strs<<(END);
+
+    if(CHR!="")
+    {
+        std::cout << "\n Region specified by user (including window = "<<WINDOW <<" bp) : chr" << CHR
+        <<":"<<START <<"-"<< (END > 0 ? (string)(strs.str()) :"END") << endl;
+    }
+
+
+
+    PrintStartIndex=0;
+    PrintEndIndex=0;
+    int     numReadRecords = 0;
+	int numtoBeWrittenRecords = 0;
+	vector<bool> importIndex;
+    int haplotype_index = 0;
+	int numSamplesRead = 0;
+	int notBiallelic = 0;
+	int failFilter = 0;
+	int duplicates = 0;
+	int insertions = 0;
+	int deletions = 0;
+	int inconsistent=0;
+	string prevID="";
+//	bool isInDel = false;
+	inFile.setSiteOnly(true);
+	numSamplesRead = header.getNumSamples();
+
+	for (int i = 0; i < numSamplesRead; i++)
+	{
+		string tempName(header.getSampleName(i));
+		individualName.push_back(tempName);
+	}
+
+    string refAllele,altAllele,PrefrefAllele,PrevaltAllele,cno,fixCno,id;
+    int bp;
+	cout << "\n Reading VCF File to calculate number of records ... \n";
+    cout<<endl;
+	// pre-calculate number of samples read and number of markers read to allocate memory.
+	while (inFile.readRecord(record))
+	{
+
+        int flag = 0;
+        if (maxMarker != 0 && numtoBeWrittenRecords>=maxMarker)
+            break;
+
+		++numReadRecords;
+
+		if (record.getNumAlts()>1)
+		{
+			notBiallelic++;
+			flag = 1;
+		}
+		if (record.getFilter().getString(0).compare("PASS") != 0)
+		{
+			failFilter++;
+			if(filter)
+                flag = 1;
+		}
+//		isInDel=false;
+
+		refAllele = record.getRefStr();
+		cno=record.getChromStr();
+        bp=record.get1BasedPosition();
+        id=record.getIDStr();
+        altAllele = record.getAltStr();
+
+
+        if(numReadRecords==1 && CHR=="")
+        {
+            if(!CheckValidChrom(cno))
+            {
+                cout << "\n Error !!! Reference VCF File contains chromosome : "<<cno<<endl;
+                cout << " VCF File can only contain chromosomes 1-22 and X !!! "<<endl;
+                cout << " Program Aborting ... "<<endl;
+                return false;
+            }
+
+        }
+        if(CHR=="" && fixCno!=cno && numReadRecords>1)
+        {
+            cout << "\n Error !!! Reference VCF File contains multiple chromosomes : "<<cno<<", "<<fixCno<<", ... "<<endl;
+            cout << " Please use VCF file with single chromosome or specify chromosome using \"--chr\" option !!! "<<endl;
+            cout << " Program Aborting ... "<<endl;
+            return false;
+        }
+
+
+        fixCno=cno;
+
+        string currID;
+
+        stringstream strs1,strs2;
+        strs1<<(cno);
+        strs2<<(bp);
+
+
+        if(rsid)
+            currID=record.getIDStr();
+        else
+            currID=(string)strs1.str()+":"+(string)strs2.str();
+
+        //cout<<prevID<<endl;
+        if (strlen(refAllele.c_str()) == 1 && strlen(altAllele.c_str()) == 1)
+        {
+            switch (refAllele[0])
+            {
+                case 'A': case 'a': break;
+                case 'C': case 'c': break;
+                case 'G': case 'g': break;
+                case 'T': case 't': break;
+                case 'D': case 'd': break;
+                case 'I': case 'i': break;
+                case 'R': case 'r': break;
+                default:
+                {
+                   cout << "\n WARNING !!! ";
+                   cout << " Reference allele for marker : " << currID << " is : " <<refAllele<<endl;
+//                   cout<<" In VCF File : " << filename;
+//                   cout << "\n VCF reference alleles for SNPs (not INDELs/SVs) can only be A(a), C(c), G(g), or T(t).";
+                   cout << " Variant will be ignored... \n";
+                   flag=1;
+                   inconsistent++;
+                }
+            }
+
+            if(flag==0)
+                switch (altAllele[0])
+                    {
+                    case 'A': case 'a': break;
+                    case 'C': case 'c': break;
+                    case 'G': case 'g': break;
+                    case 'T': case 't': break;
+                    case 'D': case 'd': break;
+                    case 'I': case 'i': break;
+                    case 'R': case 'r': break;
+                    default:
+                    {
+                        cout << "\n WARNING !!! ";
+                        cout << " Alternate allele for marker : " <<currID << " is : " <<altAllele<<endl;
+//                        cout<<" In VCF File : " << filename;
+//                        cout << "\n VCF alternate alleles for SNPs (not INDELs/SVs) can only be A(a), C(c), G(g), or T(t).";
+                        cout << " Variant will be ignored... \n";
+                        flag=1;
+                    }
+                }
+        }
+        else if(strlen(refAllele.c_str())<strlen(altAllele.c_str()))
+        {
+//			isInDel = true;
+			insertions++;
+		}
+		else
+        {
+//			isInDel = true;
+			deletions++;
+        }
+
+        stringstream strs3,strs4;
+        strs3<<(cno);
+        strs4<<(bp);
+
+        if(prevID==currID)
+        {
+            if(refAllele==PrefrefAllele && altAllele==PrevaltAllele)
+            {
+
+                cout << " WARNING !!! Duplicate Variant found chr:"
+                <<(string)strs3.str()+":"+
+                (string)strs4.str()<<" with identical REF = "
+                <<refAllele
+                 <<" and ALT = "<<altAllele <<"\n";
+                duplicates++;
+            }
+
+        }
+
+
+//        prevSNP=1-isInDel;
+        prevID=currID;
+        PrefrefAllele=refAllele;
+        PrevaltAllele=altAllele;
+
+		if(CHR!="")
+        {
+            if(cno.compare(CHR.c_str())!=0)
+                flag=1;
+            else
+            {
+                if(END>0)
+                {
+                    if(bp>END || bp<START)
+                        flag=1;
+                }
+                else
+                    if(bp<START)
+                        flag=1;
+            }
+
+        }
+
+//cout<<fixCno<<"\t"<<cno<<endl;
+
+
+		if (flag == 0)
+		{
+			if(bp<OrigStartPos)
+                PrintStartIndex++;
+
+            if(CHR=="" || bp<=OrigEndPos)
+                PrintEndIndex=numtoBeWrittenRecords;
+			++numtoBeWrittenRecords;
+			markerName.push_back(currID);
+            variant thisVariant(currID,cno,bp);
+            VariantList.push_back(thisVariant);
+			importIndex.push_back(true);
 
 		}
 		else
 		{
-			if (refAlleleString.compare(tempAllele) == 0)
-				allele = 7;
-			else if (altAlleleString.compare(tempAllele) == 0)
-				allele = 5;
-			else
-			{
-				cout << "\n Data Inconsistency !!! \n";
-				cout << " Genotype of Individual : " << indivId  << " at marker " << markerId << " is " << alleles << endl;
-				cout << " It does NOT match the Reference Allele : " << refAlleleString << " nor the Alternate Allele : " << altAlleleString << endl;
-				cout << " Program supports only bi-allelic markers \n";
-				cout << " Program Aborting ... \n\n";
-				abort();
-			}
-
-
+			importIndex.push_back(false);
 		}
-
 
 	}
 
 
-	return allele;
+	inFile.close();
+
+
+    if(CHR=="")
+        finChromosome=cno;
+    else
+        finChromosome=CHR.c_str();
 
 
 
+
+	std::cout << "\n Number of Markers read from VCF File                : " << numReadRecords << endl;
+	std::cout << " Number of Markers with more than Two Alleles        : " << notBiallelic << endl;
+	std::cout << " Number of Markers failing FILTER = PASS             : " << failFilter << endl;
+    std::cout << " Number of Markers with inconsistent Ref/Alt Allele  : " << inconsistent << endl;
+    std::cout << " Number of Markers with duplicate ID/Position        : " << duplicates << endl;
+    std::cout << " Number of Insertions                                : " << insertions << endl;
+	std::cout << " Number of Deletions                                 : " << deletions << endl;
+
+	if (maxIndiv == 0)
+		maxIndiv = numSamplesRead;
+	numMarkers = numtoBeWrittenRecords;
+	numHaplotypes = (maxIndiv<numSamplesRead) ? (2 * maxIndiv) : (2 * numSamplesRead);
+    numSamples=numHaplotypes/2;
+    if(finChromosome!="X")
+    {
+        std::cout << "\n Number of Markers to be Recorded                    : " << numtoBeWrittenRecords << endl;
+        std::cout << " Number of Haplotypes to be Recorded                 : " << (numHaplotypes) << endl;
+    }
+    else
+    {
+        cout<<"\n Chromosome X Detected !!! \n";
+        std::cout << "\n Number of Markers to be Recorded                    : " << numtoBeWrittenRecords << endl;
+        PseudoAutosomal=false;
+        inFile.open(filename, header);
+        inFile.setSiteOnly(false);
+        int numWrittenRecords = 0;
+//        int readIndex = -1;
+        inFile.readRecord(record);
+        int tempHapCount=0,MaleCount=0,FemaleCount=0;
+        for (int i = 0; i<(numSamples); i++)
+        {
+            if(record.getNumGTs(i)==0)
+            {
+                std::cout << "\n Empty Value for Individual : " << individualName[i] << " at Marker : " << VariantList[numWrittenRecords].name << endl;
+                std::cout << " Most probably a corrupted VCF file. Please check input VCF file !!! " << endl;
+                return false;
+            }
+            else
+            {
+                if(record.getNumGTs(i)==1)
+                    MaleCount++;
+                else
+                    FemaleCount++;
+                SampleNoHaplotypes.push_back(record.getNumGTs(i));
+
+                tempHapCount+=record.getNumGTs(i);
+            }
+
+        }
+        inFile.close();
+        std::cout << " Number of Samples (Haplotypes) to be Recorded       : " << numSamples << " ("<<tempHapCount <<") "<<endl;
+        numHaplotypes=tempHapCount;
+
+        if(MaleCount>0)
+        {
+        std::cout << " Number of MALE Samples (Haplotypes)                 : " << MaleCount << " ("<<MaleCount <<") "<<endl;
+        std::cout << " Number of FEMALE Samples (Haplotypes)               : " << FemaleCount<< " ("<<FemaleCount*2 <<") "<<endl;
+        }
+        else
+        {
+            std::cout << "\n All " << numSamples<<" samples have two alleles on Chromosome X !!! "<< endl;
+            cout<<" Cannot determine number of male/female samples from Pseudo-Autosomal Region ..."<<endl;
+            PseudoAutosomal=true;
+        }
+
+
+    }
+
+
+   if(numtoBeWrittenRecords<2)
+    {
+        cout << "\n None/Single marker left after filtering from Input File : "<<filename<<endl;
+		cout << " Please check the file or the filtering options properly ...\n";
+		cout << " Program Aborting ... "<<endl;
+		return false;
+    }
+
+    std::cout <<"\n Starting to load data ...";
+
+
+
+    int    blockSize = 500;
+    int    bufferSize = 1000;
+    int LastflushPos=0;
+    vector<int> index(numHaplotypes),oldIndex;
+    vector<int> previousDifference(numHaplotypes);
+    vector<int> previousPredecessor(numHaplotypes);
+    vector<int> firstDifference(numHaplotypes-1,0);
+    vector<int> cost(bufferSize+1,0);
+    vector<int> bestSlice(bufferSize+1,0);
+    vector<int> bestComplexity(bufferSize+1,0);
+    vector<vector<int> > bestIndex(bufferSize+1);
+
+    findUnique RefUnique;
+
+    RefUnique.updateCoeffs(transFactor,cisFactor);
+    vector<String> Haplotypes(numHaplotypes);
+    double blockedCost = 0.0;
+    for(int i=0;i<numHaplotypes;i++)
+        index[i]=i;
+    individualName.resize(numSamples);
+    // open file again to start loading the data in the variable haplotype.
+
+    cout<<endl;
+	inFile.open(filename, header);
+	inFile.setSiteOnly(false);
+	int numWrittenRecords = 0;
+	int readIndex = -1;
+
+
+
+
+
+
+
+	while (inFile.readRecord(record) && numWrittenRecords<numMarkers)
+	{
+		// work only with bi-allelic markers
+		readIndex++;
+
+		if (importIndex[readIndex])
+		{
+            if (Haplotypes[0].Length()==1)
+                {
+//                    cout<<numWrittenRecords<<"\t"<<readIndex<<"\t"<<Haplotypes[0].Length()<<endl;
+                    printf("  Loading markers %d - %d  out of %d markers to be loaded... [%.1f%%] "
+                    , LastflushPos + 1,
+                    min(LastflushPos+bufferSize,numMarkers),numMarkers,100*(double)(LastflushPos + 1)/numMarkers);
+                    cout<<endl;
+                }
+
+
+
+            string refAllele = record.getRefStr();
+			string altAllele = record.getAltStr();
+			char Rallele,Aallele;
+
+			if (strlen(refAllele.c_str()) == 1 && strlen(altAllele.c_str()) == 1)
+				{
+				    switch (refAllele[0])
+                    {
+                        case 'A': case 'a': Rallele = 1; break;
+                        case 'C': case 'c': Rallele = 2; break;
+                        case 'G': case 'g': Rallele = 3; break;
+                        case 'T': case 't': Rallele = 4; break;
+                        case 'D': case 'd': Rallele = 5; break;
+                        case 'I': case 'i': Rallele = 6; break;
+                        case 'R': case 'r': Rallele = 7; break;
+                        default:
+                        {
+                                   cout << "\n\n Data Inconsistency !!! \n";
+                                   cout << " Error with reference allele for marker : " << record.getIDStr() << " in VCF File : " << filename;
+                                   cout << "\n VCF reference alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
+                                   cout << " " << record.getIDStr() << " has " << refAllele << endl;
+                                   cout << "\n Program Aborting ... \n\n";
+                                   return false;
+                        }
+                    }
+
+                    switch (altAllele[0])
+                    {
+                        case 'A': case 'a': Aallele = 1; break;
+                        case 'C': case 'c': Aallele = 2; break;
+                        case 'G': case 'g': Aallele = 3; break;
+                        case 'T': case 't': Aallele = 4; break;
+                        case 'D': case 'd': Aallele = 5; break;
+                        case 'I': case 'i': Aallele = 6; break;
+                        case 'R': case 'r': Aallele = 7; break;
+                        default:
+                        {
+                                   cout << "\n\n Data Inconsistency !!! \n";
+                                   cout << " Error with alternate allele for marker : " << record.getIDStr() << " in VCF File : " << filename;
+                                   cout << "\n VCF alternate alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
+                                   cout << " " << record.getIDStr() << " has " << altAllele << endl;
+                                   cout << "\n Program Aborting ... \n\n";
+                                   return false;
+                        }
+                    }
+
+
+				}
+
+			else
+				{
+				    Rallele = 7;
+				    if(strlen(refAllele.c_str())<strlen(altAllele.c_str()))
+                        Aallele=6;
+                    else
+                        Aallele=5;
+				}
+
+            refAlleleList.push_back(Rallele);
+            VariantList[numWrittenRecords].refAllele=Rallele;
+            VariantList[numWrittenRecords].altAllele=Aallele;
+            VariantList[numWrittenRecords].refAlleleString=refAllele;
+            VariantList[numWrittenRecords].altAlleleString=altAllele;
+            haplotype_index = 0;
+            for (int i = 0; i<(numSamples); i++)
+            {
+                if(record.getNumGTs(i)==0)
+                {
+                    std::cout << "\n Empty Value for Individual : " << individualName[i] << " at Marker : " << VariantList[numWrittenRecords].name << endl;
+                    std::cout << " Most probably a corrupted VCF file. Please check input VCF file !!! " << endl;
+                    return false;
+                }
+                if(record.getNumGTs(i)==1 && finChromosome!="X")
+                {
+                    std::cout << "\n Single Autosomal Haplotype for Individual : " << individualName[i] << " at Marker : " << VariantList[numWrittenRecords].name << endl;
+                    std::cout << " Most probably a corrupted VCF file. Please check input VCF file !!! " << endl;
+                    return false;
+                }
+                for (int j = 0; j<record.getNumGTs(i); j++)
+                {
+
+                    int alleleIndex = record.getGT(i, j);
+                    if (alleleIndex<0)
+                    {
+                        std::cout << "\n Missing Value for Individual : " << individualName[i] << " at Marker : " << VariantList[numWrittenRecords].name << endl;
+                        return false;
+                    }
+
+                    else
+                    {
+                        if(haplotype_index>=numHaplotypes && finChromosome=="X")
+                        {
+                            cout << "\n Error in Reference VCF File for Chromosome X !!! "<<endl;
+                            cout << "\n Marker : " << VariantList[0].name << " has "<<numHaplotypes <<" haplotypes while ";
+                            cout << "Marker : " << VariantList[numWrittenRecords].name << " has "<< haplotype_index+1<<" haplotypes."<<endl;
+                            cout << " VCF file seems to have both Pseudo-Autosomal region (PAR) and non-PAR of chromosome X. \n";
+                            cout << " Please use only either of the two regions ... \n";
+                            cout << " See web-page for Minimac3 (Chromosome X Imputation) for more details ...\n";
+                            cout << " Program Aborting ... "<<endl;
+                            return false;
+                        }
+                        Haplotypes[haplotype_index]+= (char)('0'+record.getGT(i, j));
+                        haplotype_index++;
+                    }
+
+                }
+
+
+            }
+
+            if(haplotype_index<(numHaplotypes-1) && finChromosome=="X")
+            {
+                cout << "\n Error in Reference VCF File for Chromosome X !!! "<<endl;
+                cout << "\n Marker : " << VariantList[0].name << " has "<<numHaplotypes <<" haplotypes while ";
+                cout << "Marker : " << VariantList[numWrittenRecords].name << " has "<< haplotype_index+1<<" haplotypes."<<endl;
+                cout << " VCF file seems to have both Pseudo-Autosomal region (PAR) and non-PAR of chromosome X. \n";
+                cout << " Please use only either of the two regions ... \n";
+                cout << " See web-page for Minimac3 (Chromosome X Imputation) for more details ...\n";
+                cout << " Program Aborting ... "<<endl;
+                return false;
+            }
+            numWrittenRecords++;
+            int length = Haplotypes[0].Length();
+            vector<int> offsets(3,0);
+			for (int i = 0; i < numHaplotypes; i++)
+                offsets[Haplotypes[i][length - 1] - '0' + 1]++;
+            offsets[2]+=offsets[1];
+//            cout<<VariantList[numWrittenRecords].name<<endl;
+
+//            int bal=*max_element(index.begin(),index.end());
+//            cout<<bal<<endl;
+
+
+            oldIndex = index;
+            for (int i = 0; i < numHaplotypes; i++)
+                {
+                    index[offsets[Haplotypes[oldIndex[i]][length - 1] - '0']++] = oldIndex[i];
+//                    cout<<" INDEX [ "<<i<<
+                }
+//            for (int i = 0; i < numHaplotypes; i++)
+//                {
+////                    index[offsets[Haplotypes[oldIndex[i]][length - 1] - '0']++] = oldIndex[i];
+//                    cout<<" INDEX [ "<<i<<" = "<<index[i]<<endl;
+//                }
+//
+//                bal=*max_element(oldIndex.begin(),oldIndex.end());
+
+            RefUnique.UpdateDeltaMatrix(Haplotypes, index, firstDifference, length, blockSize,
+                           oldIndex, previousPredecessor, previousDifference);
+            RefUnique.AnalyzeBlocks(index, firstDifference, length, blockSize,
+                       cost, bestSlice, bestComplexity, bestIndex);
+//             bal=*max_element(oldIndex.begin(),oldIndex.end());
+//            cout<<bal<<endl;
+
+            if (Haplotypes[0].Length() == bufferSize)
+            {
+                blockedCost += RefUnique.FlushBlocks(optEndPoints,ReducedStructureInfo,VariantList,LastflushPos, Haplotypes, cost,
+                                            bestComplexity, bestSlice, bestIndex);
+                LastflushPos+=bufferSize;
+                LastflushPos--;
+                vector<String> tempHaplotypes(numHaplotypes);
+                for (int i = 0; i < numHaplotypes; i++)
+                {
+                    tempHaplotypes[i]=Haplotypes[i][Haplotypes[i].Length()-1];
+                    Haplotypes[i]=tempHaplotypes[i];
+                }
+
+
+                vector<int> tempoffsets(3,0);
+                for (int i = 0; i < numHaplotypes; i++)
+                    tempoffsets[Haplotypes[i][0] - '0' + 1]++;
+                tempoffsets[2]+=tempoffsets[1];
+
+                for (int i = 0; i < numHaplotypes; i++)
+                    index[tempoffsets[Haplotypes[i][0] - '0']++] = i;
+
+
+
+
+            }
+        }
+	}
+
+    if (Haplotypes[0].Length() > 1)
+      {
+      blockedCost +=  RefUnique.FlushBlocks(optEndPoints, ReducedStructureInfo,VariantList, LastflushPos, Haplotypes, cost,
+                                  bestComplexity, bestSlice, bestIndex);
+
+//      double originalCost = 1.0 * (double) markerName.size() * (double)Haplotypes.size();
+
+//      printf("\n After %d markers ...\n", (int)markerName.size());
+//      printf("   Original cost = %.0f\n", originalCost);
+//      printf("        New cost = %.0f\n", blockedCost);
+//      printf("        Speed-up = %.1f\n", originalCost / (blockedCost + 1e-6));
+      }
+
+    std::cout << "\n Number of Markers Recorded                          : " << markerName.size() << endl;
+    std::cout << " Number of Haplotypes Recorded                       : " << numHaplotypes << endl;
+
+    optEndPoints.clear();
+    int i;
+    for(i=0;i<(int)ReducedStructureInfo.size();i++)
+        {
+//            cout<<i<<"\t"<<ReducedStructureInfo[i].startIndex<<"\t"<<ReducedStructureInfo[i].endIndex<<endl;
+            optEndPoints.push_back(ReducedStructureInfo[i].startIndex);
+        }
+    optEndPoints.push_back(ReducedStructureInfo[i-1].endIndex);
+
+    //cout<<" NOW WHAT = "<<optEndPoints.back()<<endl;
+
+    if(individualName.size()==0)
+    {
+        cout << "\n No haplotypes recorded from VCF Input File : "<<filename<<endl;
+		cout << " Please check the file properly..\n";
+		cout << " Program Aborting ... "<<endl;
+		return false;
+    }
+
+    numMarkers = markerName.size();
+    std::cout << "\n Haplotype Set successfully loaded from VCF File     : " << filename << endl;
+	inFile.close();
+
+	return true;
 
 }
 

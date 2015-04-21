@@ -5,6 +5,17 @@ Minimac3 Changes:
 --------------------------------------------------------------------------
 --------------------------------------------------------------------------
 
+Version : 1.0.11
+Author  : Sayantan Das
+Date    : April 21, 2015
+
+        Implemented parallel threading for processReference. Moved all
+	haplotype data from char vector to bool vector. Implemented
+	David's patch and similar other division-removal techniques.
+	Also added legacy parameter unphased for unphased output.
+
+--------------------------------------------------------------------------
+
 Version : 1.0.10
 Author  : Sayantan Das
 Date    : February 27, 2015
