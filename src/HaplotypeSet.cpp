@@ -363,12 +363,13 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
             else if(tempString.compare("##n_markers")==0)
             {
                 InitialNMarkers=atoi(pch);
+//                abort();
                 continue;
 
             }
             else if(tempString.compare("##chrxRegion")==0)
             {
-                tempString = (string) strtok_r (NULL,"=", &end_str1);
+                tempString = (string) pch;
                 if(tempString.compare("NonPseudoAutosomal")==0)
                     PseudoAutosomal=false;
                 else if(tempString.compare("PseudoAutosomal")==0)
