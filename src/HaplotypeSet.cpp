@@ -170,6 +170,7 @@ void HaplotypeSet::PrintDosageGWASOnlyForVcfOutputForIDMaleSamples(HaplotypeSet 
 
     bool colonIndex;
     int length=(int)GWASOnlySampleIndex.size();
+    float freqVal=tHap.AlleleFreq[MarkerIndex];
 
     for(int index=0;index<length;index++)
     {
@@ -184,7 +185,7 @@ void HaplotypeSet::PrintDosageGWASOnlyForVcfOutputForIDMaleSamples(HaplotypeSet 
 
         if(a1)
         {
-            outAllele1=tHap.AlleleFreq[MarkerIndex];
+            outAllele1=freqVal;
             a1=round(outAllele1)==1?true:false;
         }
         else
@@ -242,6 +243,7 @@ void HaplotypeSet::PrintDosageGWASOnlyForVcfOutputForID(HaplotypeSet &tHap,
 
     bool colonIndex;
     int length=(int)GWASOnlySampleIndex.size();
+    float freqVal=tHap.AlleleFreq[MarkerIndex];
 
     for(int index=0;index<length;index++)
     {
@@ -257,7 +259,7 @@ void HaplotypeSet::PrintDosageGWASOnlyForVcfOutputForID(HaplotypeSet &tHap,
 
         if(a1 || a2)
         {
-            outAllele1=tHap.AlleleFreq[MarkerIndex];
+            outAllele1=freqVal;
             outAllele2=outAllele1;
             a1=round(outAllele1)==1?true:false;
             a2=a1;
