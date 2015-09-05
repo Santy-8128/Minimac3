@@ -5,6 +5,18 @@ Minimac3 Changes:
 --------------------------------------------------------------------------
 --------------------------------------------------------------------------
 
+
+Version : 1.0.12
+Author  : Sayantan Das
+Date    : September 5, 2015
+
+        Added --allTypedVariants option which adds variants which were
+	typed ONLY to the imputed output files and imputes any missing
+	values in such variants to the MAF. Also fixed a bug with chr-
+	-omosome X only male samples.
+
+--------------------------------------------------------------------------
+
 Version : 1.0.11
 Author  : Sayantan Das
 Date    : April 21, 2015
