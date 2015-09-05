@@ -433,6 +433,7 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
 
     }
 
+   ifprintf(vcfdosepartial,"\n");
 
     for(int i=1;i<=MaxIndex;i++)
     {
