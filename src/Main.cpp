@@ -38,7 +38,7 @@ int main(int argc, char ** argv)
     #endif
 
 	bool log = false, duplicates=false, unphasedOutput=false, phased = false,passOnly = false, doseOutput = false, vcfOutput = true, gzip = true, nobgzip = false, rsid=false;
-	bool processReference=false,updateModel=false, onlyRefMarkers=false, help = false, params = false;
+	bool processReference=false,updateModel=false, typedOnly=false, help = false, params = false;
     String MyChromosome="";
 
 
@@ -49,7 +49,7 @@ int main(int argc, char ** argv)
 		LONG_PARAMETER_GROUP("Reference Haplotypes")
 		LONG_STRINGPARAMETER("refHaps", &refHaps)
 		LONG_PARAMETER("passOnly", &passOnly)
-		//LONG_PARAMETER("rsid", &rsid)
+		LONG_PARAMETER("rsid", &rsid)
 		LONG_PARAMETER_GROUP("Target Haplotypes")
 		LONG_STRINGPARAMETER("haps", &haps)
 //		LONG_STRINGPARAMETER("snps", &snps)
@@ -62,6 +62,7 @@ int main(int argc, char ** argv)
 		LONG_PARAMETER("doseOutput", &doseOutput)
 		LONG_PARAMETER("hapOutput", &phased)
 		LONG_STRINGPARAMETER("format", &format)
+		LONG_PARAMETER("allTypedSites", &typedOnly)
 		LONG_PARAMETER_GROUP("Subset Parameters")
 		LONG_STRINGPARAMETER("chr", &chr)
 		LONG_INTPARAMETER("start", &start)
@@ -82,7 +83,6 @@ int main(int argc, char ** argv)
 		LONG_PHONEHOME(VERSION)
 		BEGIN_LEGACY_PARAMETERS()
 		LONG_STRINGPARAMETER("MyChromosome", &MyChromosome)
-		LONG_PARAMETER("onlyRefMarkers", &onlyRefMarkers)
 //		LONG_INTPARAMETER("transFactor", &transFactor)
 //		LONG_INTPARAMETER("cisFactor", &cisFactor)
 		LONG_INTPARAMETER("sample", &max_indiv)
@@ -492,8 +492,8 @@ int main(int argc, char ** argv)
 	if(processReference)
     {
 	    Imputation thisDataFast(reference, reference, outfile, errFile, recFile, phased
-                             , gzip, rounds, states, vcfOutput, doseOutput
-                             , onlyRefMarkers,formatVector);
+                             , gzip, rsid, rounds, states, vcfOutput, doseOutput
+                             , typedOnly,formatVector);
         thisDataFast.createEstimates(reference, reference, reference.optEndPoints, true);
 	}
 
@@ -512,7 +512,7 @@ int main(int argc, char ** argv)
         cout<<" ------------------------------------------------------------------------------"<<endl;
 
 
-	    if (!target.LoadTargetHaplotypes(haps, snps, reference.markerName,reference))
+	    if (!target.LoadTargetHaplotypes(haps, snps, reference.markerName,reference,typedOnly,passOnly))
         {
 
             cout << "\n Program Exiting ... \n\n";
@@ -527,12 +527,12 @@ int main(int argc, char ** argv)
 
 
 
-
     if(!processReference)
 	{
 	    Imputation thisDataFast(target, reference, outfile, errFile, recFile, phased
-                             , gzip, rounds, states, vcfOutput, doseOutput
-                             , onlyRefMarkers,formatVector,updateModel,unphasedOutput);
+                             , gzip, rsid, rounds, states, vcfOutput, doseOutput
+                             , typedOnly,formatVector,updateModel,unphasedOutput);
+
         thisDataFast.performImputation(target, reference, golden);
 	}
 

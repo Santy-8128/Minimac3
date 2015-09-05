@@ -346,7 +346,7 @@ void MarkovModel::ImputeOld(int position, bool observed, bool observedMiss,
     imputedDose[position] += imputedHap[position]= (pmajor / ptotal);
 
 
-    imputedAlleles[position] = mle;
+//    imputedAlleles[position] = mle;
     imputedAlleleNumber[position] = mle;
 
     double fmatch = 1.0 / (1. - Error[position] + Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError );
@@ -436,7 +436,7 @@ void MarkovModel::Impute(int position, bool observed, bool observedMiss,
 
 
     imputedDose[position] += imputedHap[position]= (pmajor / ptotal);
-    imputedAlleles[position] = mle;
+//    imputedAlleles[position] = mle;
     imputedAlleleNumber[position] = mle;
 
     double fmatch = 1.0 / (1. - Error[position] + Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError );

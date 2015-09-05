@@ -32,7 +32,7 @@ class MarkovModel : public MarkovParameters
         vector<bool> missing;
         vector<bool> PrecisionJump;
         vector<float>    imputedDose, imputedHap, leaveOneOut;
-        vector<bool> imputedAlleles,imputedAlleleNumber;
+        vector<bool> imputedAlleleNumber;
 
 
         bool            Transpose       (vector<float> &from,vector<float> &to,  vector<float> &noRecomProb, double reco,vector<int> &uniqueCardinality);
@@ -105,7 +105,7 @@ class MarkovModel : public MarkovParameters
                             imputedDose.resize(noMarker,0.0);
                             imputedHap.resize(noMarker);
                             leaveOneOut.resize(noMarker);
-                            imputedAlleles.resize(noMarker);
+//                            imputedAlleles.resize(noMarker);
                             imputedAlleleNumber.resize(noMarker);
 
                             refCount=rHap.numHaplotypes;
@@ -125,7 +125,7 @@ class MarkovModel : public MarkovParameters
                             imputedDose.resize(noMarker);
                             imputedHap.resize(noMarker);
                             leaveOneOut.resize(noMarker);
-                            imputedAlleles.resize(noMarker);
+//                            imputedAlleles.resize(noMarker);
                             imputedAlleleNumber.resize(noMarker);
                             NoPrecisionJumps=0;
 

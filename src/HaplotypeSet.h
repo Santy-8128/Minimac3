@@ -28,18 +28,33 @@ class HaplotypeSet
 
 		vector<vector<bool> >     haplotypesUnscaffolded;
 		vector<vector<bool> >     MissingSampleUnscaffolded;
+        vector<vector<bool> >     GWASOnlyhaplotypesUnscaffolded;
+		vector<vector<bool> >     GWASOnlyMissingSampleUnscaffolded;
+
+
 
 		vector<vector<double> > alleleFreq;
 		vector<double> AlleleFreq;
+        vector<int> TotalSample;
 		vector<vector<float> > Dosage;
 		vector<vector<bool> > ImputedAlleles;
+		vector<vector<bool> > GWASOnlyAlleles;
+		vector<vector<bool> > GWASOnlyMissing;
+		vector<int> GWASOnlySampleIndex;
 		int PrintStartIndex,PrintEndIndex;
+		bool RsId;
+		bool GWASPanelOnly;
         bool GT,DS,GP;
         bool onlyCompress,filter;
         bool EstimateNcompress;
         bool PseudoAutosomal;
         bool AllMaleTarget;
         bool Duplicates;
+        bool TypedOnly;
+        int GWASOnlycounter;
+        vector<int> RefTypedIndex;
+        int RefTypedTotalCount;
+        bool Filter;
         int transFactor, cisFactor;
         string MyChromosome;
         int CPU;
@@ -51,9 +66,19 @@ class HaplotypeSet
 		vector<char> refAlleleList;
 		vector<bool> major, minor;
 
+        int OrigStartPos;
+        int OrigEndPos;
+
+
+        vector<char> GWASOnlyrefAlleleList;
+
 
 		vector<bool> missing, MarkerIndices;
 		vector<variant> VariantList;
+		vector<variant> TypedOnlyVariantList;
+
+
+
         string finChromosome;
 		bool allowMissing, vcfType,m3vcfxType,machType;
 
@@ -70,6 +95,7 @@ class HaplotypeSet
 
 			markerName.clear();
 			refAlleleList.clear();
+			GWASOnlyrefAlleleList.clear();
 			major.clear();
 			minor.clear();
 			missing.clear();
@@ -91,15 +117,27 @@ class HaplotypeSet
         void    Create                                      (vector<bool> &tempHaplotype);
         void    calculateFreq                               ();
 		void    CalculateFreq                               ();
-		bool    LoadSnpList                                 (String filename);
+		void    CalculateGWASOnlyFreq                       ();
+        bool    LoadSnpList                                 (String filename);
 		bool    LoadMachHaplotypes                          (String filename, String targetSnpfile, vector<string> &refSnpList);
 		bool    LoadMachHaplotypes                          (String filename, String targetSnpfile);
         char    convertAlleles                              (string markerId, string indivId, const char *alleles, string refAlleleString, string altAlleleString);
 		bool    LoadHaplotypes                              (String filename, String snpNames, int maxIndiv, int maxMarker,bool optmx,String CNO,int START,int END);
 		bool    FastLoadHaplotypes                          (String filename, int maxIndiv, int maxMarker,String CNO,int START,int END,int WINDOW,bool rsid,bool compressOnly,bool filter);
-		bool    FasterLoadHaplotypes                        (String filename, int maxIndiv, int maxMarker,String CNO,int START,int END,int WINDOW,bool rsid,bool compressOnly,bool filter);
-		bool    LoadTargetHaplotypes                        (String filename, String targetSnpfile, vector<string> &refSnpList, HaplotypeSet &rHap);
+		bool    FasterLoadHaplotypes                         (String filename, int maxIndiv, int maxMarker,String CNO,int START,int END,int WINDOW,bool rsid,bool compressOnly,bool filter);
+//		bool    LoadTargetHaplotypes                        (String filename, String targetSnpfile, vector<string> &refSnpList, HaplotypeSet &rHap);
+
+        bool    LoadTargetHaplotypes                        (String filename, String targetSnpfile, vector<string> &refSnpList,HaplotypeSet &rHap,bool typedOnly,bool passOnly);
 		bool    LoadVcfTargetHaplotypes                     (String filename, String snpNames, vector<string> &refSnpList,HaplotypeSet &rHap);
+        void    PrintDosageGWASOnlyForVcfOutputForID        (HaplotypeSet &tHap,
+                                                            IFILE vcfdose,
+                                                            int MarkerIndex);
+        void    PrintDosageGWASOnlyForVcfOutputForIDMaleSamples        (HaplotypeSet &tHap,
+                                                            IFILE vcfdose,
+                                                            int MarkerIndex);
+
+        void    SaveIndexForGWASOnlyForVcfOutput            (int SamID,int HapId);
+
         void    convertToReducedStructure                   (vector<int> &optStructure);
         void    writem3vcfFile                              (String &filename,bool &gzip);
         bool    readm3vcfFile                               (String m3vcfFile,String CHR,int START,int END,int WINDOW);

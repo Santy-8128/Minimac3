@@ -29,9 +29,10 @@ class Imputation
             String outFile;
             int MaxSample;
             bool full,makeOptmxOnly;
-            bool em,vcfOutput,doseOutput,onlyRefMarkers;
+            bool em,vcfOutput,doseOutput,TypedOnly;
             bool phased;
             bool gzip;
+            bool RsId;
             bool GT,DS,GP,unphasedOutput;
             vector<bool> format;
             bool includeGwas,updateModel;
@@ -51,10 +52,11 @@ class Imputation
         }
 
         Imputation(HaplotypeSet &tHap,HaplotypeSet &rHap,String &out,String &err,
-                   String &rec,bool Ph,bool gz,int rounds, int states,bool vcfoutput,
+                   String &rec,bool Ph,bool gz,bool rsid, int rounds, int states,bool vcfoutput,
                    bool doseoutput, bool onlyrefmarkers,vector<bool> &Format )
         {
 
+            RsId=rsid;
             targetCount=tHap.numHaplotypes;
             refCount=rHap.numHaplotypes;
             markerCount=rHap.numMarkers;
@@ -70,7 +72,7 @@ class Imputation
             gzip=gz;
             vcfOutput=vcfoutput;
             doseOutput=doseoutput;
-            onlyRefMarkers=onlyrefmarkers;
+            TypedOnly=onlyrefmarkers;
             format=Format;
             GT=Format[0];
             DS=Format[1];
@@ -81,10 +83,11 @@ class Imputation
 
         };
        Imputation(HaplotypeSet &tHap,HaplotypeSet &rHap,String &out,String &err,
-                   String &rec,bool Ph,bool gz,int rounds, int states,bool vcfoutput,
+                   String &rec,bool Ph,bool gz,bool rsid, int rounds, int states,bool vcfoutput,
                    bool doseoutput, bool onlyrefmarkers,vector<bool> &Format, bool updateMODEL,bool UnphasedOutput)
         {
 
+            RsId=rsid;
             updateModel=updateMODEL;
             targetCount=tHap.numHaplotypes;
             refCount=rHap.numHaplotypes;
@@ -101,7 +104,7 @@ class Imputation
             gzip=gz;
             vcfOutput=vcfoutput;
             doseOutput=doseoutput;
-            onlyRefMarkers=onlyrefmarkers;
+            TypedOnly=onlyrefmarkers;
             format=Format;
             GT=Format[0];
             DS=Format[1];
@@ -126,6 +129,21 @@ class Imputation
                                                                     double e, double freq, bool observed, double backgroundError, int NoRedStates, ReducedHaplotypeInfo &Info);
         void                            FlushPartialVcf             (HaplotypeSet &rHap,HaplotypeSet &tHap,HaplotypeSet &PartialDosage, string &filename,int &Index);
         void                            MergeFinalVcf               (HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationStatistics &stats,int MaxIndex);
+        void                            MergeFinalVcfAllVariants    (HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationStatistics &stats,int MaxIndex);
+
+        void                            PrintDosageData             (HaplotypeSet &rHap,HaplotypeSet &tHap,
+                                                                     IFILE dosages, vector<float> &ThisDosage,
+                                                                     int ThisSampleId);
+
+        void                            PrintHaplotypeData          (HaplotypeSet &rHap,HaplotypeSet &tHap,
+                                                                     IFILE hapdose, IFILE haps,
+                                                                     vector<float> &ThisimputedHap,vector<bool> ThisimputedAlleles,
+                                                                     int ThisHapId, int ThisSampleId);
+
+
+
+        void                            PrintInfoFile               (HaplotypeSet &rHap,HaplotypeSet &tHap, ImputationStatistics &stats);
+
 };
 
 

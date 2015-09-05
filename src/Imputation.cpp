@@ -294,6 +294,7 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
     MP->WriteParameters(rHap.markerName, outFile, false);
     int time_load = time(0) - time_prev;
 
+    rHap.RsId=RsId;
     if(rHap.vcfType)
         rHap.writem3vcfFile(outFile,gzip);
 
@@ -305,7 +306,8 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
 }
 
 
-void Imputation::MergeFinalVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationStatistics &stats,int MaxIndex)
+
+void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationStatistics &stats,int MaxIndex)
 {
     cout<<" ------------------------------------------------------------------------------"<<endl;
     cout<<"                                FINAL VCF MERGE                                "<<endl;
@@ -317,6 +319,11 @@ void Imputation::MergeFinalVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationS
     IFILE vcfdosepartial = ifopen(outFile + ".dose.vcf" + (gzip ? ".gz" : ""),  "a", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
 
     vector<IFILE> vcfdosepartialList(MaxIndex);
+
+
+
+
+
 
     for(int i=1;i<=MaxIndex;i++)
     {
@@ -335,43 +342,95 @@ void Imputation::MergeFinalVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationS
         ifprintf(vcfdosepartial,"%s",line.c_str());
     }
 
-    for (int i = rHap.PrintStartIndex; i <= rHap.PrintEndIndex; i++)
-   {
+    int i=0;
+    for (int index =0; index < rHap.RefTypedTotalCount; index++)
+    {
+
+//abort();
+        if(index%10000==0)
+        {
+            printf("    Merging marker %d of %d [%.1f%%] to VCF File ...", index + 1, rHap.RefTypedTotalCount,100*(double)(index + 1)/(int)rHap.RefTypedTotalCount);
+            cout<<endl;
+        }
 
 
-        if(i%10000==0)
+        if(rHap.RefTypedIndex[index]==-1)
+        {
+
+            if(i>=rHap.PrintStartIndex && i <= rHap.PrintEndIndex)
             {
-                printf("    Merging marker %d of %d [%.1f%%] to VCF File ...", i + 1, rHap.numMarkers,100*(double)(i + 1)/(int)rHap.numMarkers);
-                cout<<endl;
+
+                ifprintf(vcfdosepartial,"\n%s\t%d\t%s\t%s\t%s\t.\tPASS\tMAF=%.5f;R2=%.5f",
+                rHap.VariantList[i].chr.c_str(),rHap.VariantList[i].bp,
+                RsId?rHap.VariantList[i].rsid.c_str():rHap.VariantList[i].name.c_str(),rHap.VariantList[i].refAlleleString.c_str(),
+                rHap.VariantList[i].altAlleleString.c_str(),stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),stats.Rsq(i));
+
+
+                if(!tHap.missing[i])
+                    ifprintf(vcfdosepartial,";ER2=%.5f",stats.EmpiricalRsq(i));
+
+                ifprintf(vcfdosepartial,"\t%s",GT?(DS?(GP?"GT:DS:GP":"GT:DS"):(GP?"GT:GP":"GT")):(DS?(GP?"DS:GP":"DS"):(GP?"GP":"")));
+
+                for(int j=1;j<=MaxIndex;j++)
+                {
+                    string tempFileIndex(outFile);
+                    stringstream strs;
+                    strs<<(j);
+                    tempFileIndex+=(".dose.vcf.part."
+                                    + (string)(strs.str())
+                                    +(gzip ? ".gz" : ""));
+                    line.clear();
+                    vcfdosepartialList[j-1]->readLine(line);
+                    ifprintf(vcfdosepartial,"%s",line.c_str());
+                }
+
             }
 
 
-        ifprintf(vcfdosepartial,"\n%s\t%d\t%s\t%s\t%s\t.\tPASS\tMAF=%.5f;R2=%.5f",
-        rHap.VariantList[i].chr.c_str(),rHap.VariantList[i].bp,
-        rHap.VariantList[i].name.c_str(),rHap.VariantList[i].refAlleleString.c_str(),
-        rHap.VariantList[i].altAlleleString.c_str(),stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),stats.Rsq(i));
 
-
-
-
-
-        if(!tHap.missing[i])
-            ifprintf(vcfdosepartial,";ER2=%.5f",stats.EmpiricalRsq(i));
-
-        ifprintf(vcfdosepartial,"\t%s",GT?(DS?(GP?"GT:DS:GP":"GT:DS"):(GP?"GT:GP":"GT")):(DS?(GP?"DS:GP":"DS"):(GP?"GP":"")));
-
-        for(int j=1;j<=MaxIndex;j++)
-        {
-            string tempFileIndex(outFile);
-            stringstream strs;
-            strs<<(j);
-            tempFileIndex+=(".dose.vcf.part."
-                            + (string)(strs.str())
-                            +(gzip ? ".gz" : ""));
-            line.clear();
-            vcfdosepartialList[j-1]->readLine(line);
-            ifprintf(vcfdosepartial,"%s",line.c_str());
+            i++;
         }
+        else
+        {
+
+
+            variant ThisTypedVariant =tHap.TypedOnlyVariantList[rHap.RefTypedIndex[index]];
+            ifprintf(vcfdosepartial,"\n%s\t%d\t%s\t%s\t%s\t.\tPASS\t",
+                     ThisTypedVariant.chr.c_str(),
+                     ThisTypedVariant.bp,
+                     RsId? ThisTypedVariant.rsid.c_str():ThisTypedVariant.name.c_str(),
+                     ThisTypedVariant.refAlleleString.c_str(),
+                     ThisTypedVariant.altAlleleString.c_str());
+
+
+            ifprintf(vcfdosepartial,"GENOTYPED_ONLY;AN=%d;MAF=%.5f",
+                     tHap.TotalSample[rHap.RefTypedIndex[index]],
+                     tHap.AlleleFreq[rHap.RefTypedIndex[index]]);
+
+//cout<<rHap.RefTypedIndex[index]<<" " <<tHap.TotalSample[rHap.RefTypedIndex[index]]<<" " << tHap.AlleleFreq[rHap.RefTypedIndex[index]]/(double)tHap.TotalSample[rHap.RefTypedIndex[index]]<< endl;
+
+            ifprintf(vcfdosepartial,"\t%s",GT?(DS?(GP?"GT:DS:GP":"GT:DS"):(GP?"GT:GP":"GT")):(DS?(GP?"DS:GP":"DS"):(GP?"GP":"")));
+
+            for(int j=1;j<=MaxIndex;j++)
+            {
+                string tempFileIndex(outFile);
+                stringstream strs;
+                strs<<(j);
+                tempFileIndex+=(".dose.vcf.part."
+                                + (string)(strs.str())
+                                +(gzip ? ".gz" : ""));
+                line.clear();
+                vcfdosepartialList[j-1]->readLine(line);
+                ifprintf(vcfdosepartial,"%s",line.c_str());
+
+            }
+
+//            ifprintf(vcfdosepartial,"\n");
+
+
+
+        }
+
     }
 
 
@@ -395,6 +454,8 @@ void Imputation::MergeFinalVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,ImputationS
 
 
 
+
+
 void Imputation::FlushPartialVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,HaplotypeSet &PartialDosage, string &filename,int &Index)
 {
 
@@ -407,25 +468,274 @@ void Imputation::FlushPartialVcf(HaplotypeSet &rHap,HaplotypeSet &tHap,Haplotype
     }
     ifprintf(vcfdosepartial,"\n");
 
-    for (int i = rHap.PrintStartIndex; i <= rHap.PrintEndIndex; i++)
-   {
-        bool majorIsReference=false;
-         if(!rHap.major[i])
-            majorIsReference=true;
+    int i=0;
+    for (int index =0; index < rHap.RefTypedTotalCount; index++)
+    {
 
-        if(!tHap.AllMaleTarget)
-            PartialDosage.PrintDosageForVcfOutputForID(vcfdosepartial,i, majorIsReference,rHap.VariantList[i].refAllele);
+        if(rHap.RefTypedIndex[index]==-1)
+        {
+
+            if(i>=rHap.PrintStartIndex && i <= rHap.PrintEndIndex)
+            {
+                bool majorIsReference=false;
+                if(!rHap.major[i])
+                    majorIsReference=true;
+
+                if(!tHap.AllMaleTarget)
+                    PartialDosage.PrintDosageForVcfOutputForID(vcfdosepartial,i, majorIsReference,rHap.VariantList[i].refAllele);
+                else
+                    PartialDosage.PrintDosageForVcfOutputForIDMaleSamples(vcfdosepartial,i, majorIsReference,rHap.VariantList[i].refAllele);
+
+                ifprintf(vcfdosepartial,"\n");
+
+            }
+            i++;
+
+        }
         else
-            PartialDosage.PrintDosageForVcfOutputForIDMaleSamples(vcfdosepartial,i, majorIsReference,rHap.VariantList[i].refAllele);
+        {
 
-        ifprintf(vcfdosepartial,"\n");
+
+            if(!tHap.AllMaleTarget)
+                PartialDosage.PrintDosageGWASOnlyForVcfOutputForID
+                (tHap,vcfdosepartial,rHap.RefTypedIndex[index]);
+            else
+                PartialDosage.PrintDosageGWASOnlyForVcfOutputForIDMaleSamples
+                (tHap,vcfdosepartial,rHap.RefTypedIndex[index]);
+            ifprintf(vcfdosepartial,"\n");
+        }
+
     }
-
 
     ifclose(vcfdosepartial);
 
+
+
 }
 
+
+
+void Imputation::PrintDosageData(HaplotypeSet &rHap,HaplotypeSet &tHap,
+                                 IFILE dosages, vector<float> &ThisDosage,
+                                 int ThisSampleId)
+{
+
+    printf("    Outputting Individual %s for Dosage file...",  tHap.individualName[ThisSampleId].c_str());
+    cout<<endl;
+    ifprintf(dosages, "%s\tDOSE",tHap.individualName[ThisSampleId].c_str());
+    int i=0;
+    for (int index =0; index < rHap.RefTypedTotalCount; index++)
+    {
+
+        if(rHap.RefTypedIndex[index]==-1)
+        {
+
+            if(i>=rHap.PrintStartIndex && i <= rHap.PrintEndIndex)
+            {
+
+                 ifprintf(dosages, "\t%.3f", ThisDosage[i]);
+            }
+            i++;
+
+        }
+        else
+        {
+            int MarkerIndex=rHap.RefTypedIndex[index];
+            bool a1,a2;
+            double outAllele1=0.0,outAllele2=0.0;
+
+
+            if(tHap.AllMaleTarget)
+            {
+                a1=tHap.GWASOnlyMissingSampleUnscaffolded[ThisSampleId][MarkerIndex];
+
+                if(a1)
+                {
+                    outAllele1=tHap.AlleleFreq[MarkerIndex];
+                    a1=round(outAllele1)==1?true:false;
+                }
+                else
+                {
+                    a1=tHap.GWASOnlyhaplotypesUnscaffolded[ThisSampleId][MarkerIndex];
+                    if(a1)
+                        outAllele1=1.0;
+                }
+
+                if(!tHap.major[MarkerIndex])
+                    outAllele1=1-outAllele1;
+
+                ifprintf(dosages, "\t%.3f", outAllele1);
+            }
+            else
+            {
+                a1=tHap.GWASOnlyMissingSampleUnscaffolded[2*ThisSampleId][MarkerIndex];
+                a2=tHap.GWASOnlyMissingSampleUnscaffolded[2*ThisSampleId+1][MarkerIndex];
+
+                if(a1 || a2)
+                {
+                    outAllele1=tHap.AlleleFreq[MarkerIndex];
+                    outAllele2=outAllele1;
+                    a1=round(outAllele1)==1?true:false;
+                    a2=a1;
+                }
+                else
+                {
+                    a1=tHap.GWASOnlyhaplotypesUnscaffolded[2*ThisSampleId][MarkerIndex];
+                    a2=tHap.GWASOnlyhaplotypesUnscaffolded[2*ThisSampleId+1][MarkerIndex];
+                    if(a1)
+                        outAllele1=1.0;
+                    if(a2)
+                        outAllele2=1.0;
+
+                }
+
+                if(!tHap.major[MarkerIndex])
+                {
+                    outAllele1=1-outAllele1;
+                    outAllele2=1-outAllele2;
+                }
+
+                ifprintf(dosages, "\t%.3f", outAllele1+outAllele2);
+            }
+
+        }
+
+    }
+
+    ifprintf(dosages,"\n");
+
+}
+
+
+
+void Imputation::PrintHaplotypeData(HaplotypeSet &rHap,HaplotypeSet &tHap,
+                                 IFILE hapdose, IFILE haps,
+                                 vector<float> &ThisimputedHap,vector<bool> ThisimputedAlleles,
+                                 int ThisHapId, int ThisSampleId)
+{
+
+    char labels[]= {0, 'A', 'C', 'G', 'T', 'D', 'I', 'R'};
+
+
+    printf("    Outputting HAPLO%d of Individual %s for Haplotype File...",
+           tHap.AllMaleTarget?1:(ThisHapId%2+1) ,tHap.individualName[ThisSampleId].c_str());
+    cout<<endl;
+    ifprintf(hapdose, "%s\tHAPLO%d",  tHap.individualName[ThisSampleId].c_str(), tHap.AllMaleTarget?1:(ThisHapId%2+1) );
+    ifprintf(haps, "%s\tHAPLO%d\t", tHap.individualName[ThisSampleId].c_str(), tHap.AllMaleTarget?1:(ThisHapId%2+1) );
+    int i=0;
+    for (int index =0; index < rHap.RefTypedTotalCount; index++)
+    {
+
+        if(rHap.RefTypedIndex[index]==-1)
+        {
+
+            if(i>=rHap.PrintStartIndex && i <= rHap.PrintEndIndex)
+            {
+                ifprintf(hapdose, "\t%.5f", ThisimputedHap[i]);
+                ifprintf(haps, "%c", labels[(int) (ThisimputedAlleles[i]?
+                        rHap.VariantList[i].altAllele
+                            :rHap.VariantList[i].refAllele)]);
+
+            }
+            i++;
+        }
+        else
+        {
+            int MarkerIndex=rHap.RefTypedIndex[index];
+            bool a1;
+            a1=tHap.GWASOnlyMissingSampleUnscaffolded[ThisHapId][MarkerIndex];
+            double outAllele1=0.0;
+
+            if(a1)
+            {
+                outAllele1=tHap.AlleleFreq[MarkerIndex];
+                a1=round(outAllele1)==1?true:false;
+            }
+            else
+            {
+                a1=tHap.GWASOnlyhaplotypesUnscaffolded[ThisHapId][MarkerIndex];
+                 if(a1)
+                        outAllele1=1.0;
+            }
+
+            if(!tHap.major[MarkerIndex])
+                outAllele1=1-outAllele1;
+
+
+            ifprintf(haps, "%c", labels[(int) (a1?
+                     tHap.TypedOnlyVariantList[MarkerIndex].altAllele
+                        :tHap.TypedOnlyVariantList[MarkerIndex].refAllele)]);
+
+            ifprintf(hapdose, "\t%.5f",outAllele1);
+
+
+        }
+    }
+
+    ifprintf(hapdose, "\n");
+    ifprintf(haps, "\n");
+
+}
+
+
+void Imputation::PrintInfoFile(HaplotypeSet &rHap,HaplotypeSet &tHap,  ImputationStatistics &stats)
+
+{
+    cout<<endl<<" Writing summary (.info) files ... "<<endl;
+    IFILE info = ifopen(outFile + ".info", "wb");
+    ifprintf(info, "SNP\tREF\tALT\tMajor\tMinor\tDoseMAF\tRefMAF\tAvgCall\tRsq\tGenotyped\tLooRsq\tEmpR\tEmpRsq\tDose1\tDose2\n");
+
+
+    int i=0;
+    for (int index =0; index < rHap.RefTypedTotalCount; index++)
+    {
+
+        if(rHap.RefTypedIndex[index]==-1)
+        {
+
+            if(i>=rHap.PrintStartIndex && i <= rHap.PrintEndIndex)
+            {
+                ifprintf(info, "%s\t%s\t%s\t%s\t%s\t%.5f\t%.5f\t%.5f\t%.5f\t",
+                RsId? rHap.VariantList[i].rsid.c_str(): rHap.VariantList[i].name.c_str(),
+                rHap.VariantList[i].refAlleleString.c_str(),
+                rHap.VariantList[i].altAlleleString.c_str(),
+                rHap.VariantList[i].MajAlleleString.c_str(),
+                rHap.VariantList[i].MinAlleleString.c_str(),
+                stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),
+                rHap.AlleleFreq[i],
+                stats.AverageCallScore(i),
+                stats.Rsq(i));
+
+                if (!tHap.missing[i])
+                {
+                    ifprintf(info, "Genotyped\t%.3f\t%.3f\t%.5f\t%.5f\t%.5f\n",
+                      stats.LooRsq(i), stats.EmpiricalR(i), stats.EmpiricalRsq(i),
+                      stats.LooMajorDose(i), stats.LooMinorDose(i));
+                }
+                else
+                 ifprintf(info, "Imputed\t-\t-\t-\t-\t-\n");
+            }
+            i++;
+        }
+        else
+        {
+            variant ThisTypedVariant =tHap.TypedOnlyVariantList[rHap.RefTypedIndex[index]];
+
+            ifprintf(info, "%s\t%s\t%s\t%s\t%s\t%.5f\t-\t-\t-\tTyped_Only\t-\t-\t-\t-\t-\n",
+            RsId? ThisTypedVariant.rsid.c_str(): ThisTypedVariant.name.c_str(),
+            ThisTypedVariant.refAlleleString.c_str(),
+            ThisTypedVariant.altAlleleString.c_str(),
+            ThisTypedVariant.MajAlleleString.c_str(),
+            ThisTypedVariant.MinAlleleString.c_str(),
+            tHap.AlleleFreq[rHap.RefTypedIndex[index]] > 0.5 ?
+                        1.0 - tHap.AlleleFreq[rHap.RefTypedIndex[index]] : tHap.AlleleFreq[rHap.RefTypedIndex[index]]);
+
+        }
+    }
+    ifclose(info);
+
+    cout<<endl<<" Summary information written to          : "<<outFile<<".info"<<endl;
+   }
 
 void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String Golden)
 {
@@ -443,10 +753,18 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
 
     ImputationStatistics stats(rHap.numMarkers );
     IFILE dosages=NULL, hapdose=NULL, haps=NULL,vcfdosepartial=NULL;
-//    HaplotypeSet DosageForVcf;
     HaplotypeSet DosageForVcfPartial;
     DosageForVcfPartial.unphasedOutput=unphasedOutput;
+    DosageForVcfPartial.TypedOnly=tHap.TypedOnly;
+    DosageForVcfPartial.GWASOnlycounter=tHap.GWASOnlycounter;
 
+    if(tHap.TypedOnly)
+    {
+        printf("\n Calculating Allele Frequency for Typed-Only variants ... ");
+        cout<<endl;
+        tHap.CalculateGWASOnlyFreq();
+
+    }
 
     cout << "\n Starting Imputation ...";
     printf("\n\n Setting up Markov Model for Imputation ...");
@@ -501,9 +819,9 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         ifclose(vcfdosepartial);
 
         if(!tHap.AllMaleTarget)
-            DosageForVcfPartial.InitializePartialDosageForVcfOutput((tHap.AllMaleTarget?maxVcfSample:2*maxVcfSample),rHap.numMarkers,format);
+            DosageForVcfPartial.InitializePartialDosageForVcfOutput((2*maxVcfSample),rHap.numMarkers,format);
         else
-            DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples((tHap.AllMaleTarget?maxVcfSample:2*maxVcfSample),rHap.numMarkers,format);
+            DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples(maxVcfSample<MaxSample?maxVcfSample:MaxSample,rHap.numMarkers,format);
     }
 
     if(doseOutput)
@@ -612,21 +930,9 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
             if (phased && !unphasedOutput)
             {
 
-                printf("    Outputting HAPLO%d of Individual %s for Haplotype File...", tHap.AllMaleTarget?1:(hapIdIndiv%2+1) ,tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str());
-
-                cout<<endl;
-                ifprintf(hapdose, "%s\tHAPLO%d",  tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str(), tHap.AllMaleTarget?1:(hapIdIndiv%2+1) );
-                ifprintf(haps, "%s\tHAPLO%d\t", tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str(), tHap.AllMaleTarget?1:(hapIdIndiv%2+1) );
-                for (int j = rHap.PrintStartIndex; j <= rHap.PrintEndIndex; j++)
-                {
-                    ifprintf(hapdose, "\t%.5f", MM.imputedHap[j]);
-                    ifprintf(haps, "%c", MM.imputedAlleles[j]?
-                                    rHap.VariantList[j].refAllele
-                                        :rHap.VariantList[j].altAllele);
-                }
-
-            ifprintf(hapdose, "\n");
-            ifprintf(haps, "\n");
+                PrintHaplotypeData(rHap, tHap, hapdose, haps,
+                                    MM.imputedHap, MM.imputedAlleleNumber,
+                                    hapIdIndiv, tHap.AllMaleTarget?hapId:hapId/2);
             }
 
 
@@ -638,12 +944,7 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         #pragma omp critical
         if(doseOutput)
         {
-            printf("    Outputting Individual %s for Dosage file...",  tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str());
-            cout<<endl;
-            ifprintf(dosages, "%s\tDOSE",tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str());
-            for (int j = rHap.PrintStartIndex; j <= rHap.PrintEndIndex; j++)
-                ifprintf(dosages, "\t%.3f", MM.imputedDose[j]);
-            ifprintf(dosages, "\n");
+            PrintDosageData(rHap, tHap, dosages, MM.imputedDose, tHap.AllMaleTarget?hapId:hapId/2);
         }
          #pragma omp critical
         if(vcfOutput)
@@ -658,8 +959,18 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
             else
                 DosageForVcfPartial.SaveDosageForVcfOutputSampleWiseChrX(NumVcfCreated-NumVcfWritten,
                                                                  tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2],
-                                                                 MM.imputedHap,
+                                                                  MM.imputedHap,
                                                                  MM.imputedAlleleNumber);
+
+            if(DosageForVcfPartial.TypedOnly)
+            {
+
+                DosageForVcfPartial.SaveIndexForGWASOnlyForVcfOutput(NumVcfCreated-NumVcfWritten,
+                                                                     tHap.AllMaleTarget?hapId:hapId/2);
+            }
+
+
+
             NumVcfCreated++;
             vcfSampleIndex++;
 
@@ -669,6 +980,8 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
                 string PartialVcfFileName(outFile),tempFileIndex1(outFile);
                 stringstream strs;
                 strs<<(NovcfParts);
+
+
                 PartialVcfFileName+=(".dose.vcf.part." +
                                       (string)(strs.str())
                                      +(gzip ? ".gz" : ""));
@@ -678,9 +991,11 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
                        PartialVcfFileName.c_str());
                 else
                     printf("\n    --->>> Saving samples %d-%d in VCF file : %s ...\n\n",
-                       (NumVcfWritten)+1,(MaxSample/2<(NumVcfWritten+maxVcfSample)?MaxSample:(NumVcfWritten+maxVcfSample)),
+                       (NumVcfWritten)+1,(MaxSample<(NumVcfWritten+maxVcfSample)?MaxSample:(NumVcfWritten+maxVcfSample)),
                        PartialVcfFileName.c_str());
 
+//if(NovcfParts==2)
+//    abort();
 
 
                 FlushPartialVcf(rHap,tHap,DosageForVcfPartial,PartialVcfFileName,NovcfParts);
@@ -688,12 +1003,19 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
                 {
                     NovcfParts++;
                     NumVcfWritten+=maxVcfSample;
-                    DosageForVcfPartial.InitializePartialDosageForVcfOutput(maxVcfSample<(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten)?2*maxVcfSample:2*(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten),rHap.numMarkers,format);
 
-    if(!tHap.AllMaleTarget)
-        DosageForVcfPartial.InitializePartialDosageForVcfOutput(maxVcfSample<(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten)?2*maxVcfSample:2*(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten),rHap.numMarkers,format);
-    else
-        DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples(maxVcfSample<(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten)?2*maxVcfSample:2*(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten),rHap.numMarkers,format);
+
+
+//int gg=maxVcfSample<(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten)?
+//2*maxVcfSample:2*(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten);
+//
+//
+//abort();
+
+                    if(!tHap.AllMaleTarget)
+                        DosageForVcfPartial.InitializePartialDosageForVcfOutput(maxVcfSample<(MaxSample/2-NumVcfWritten)?2*maxVcfSample:2*(MaxSample/2-NumVcfWritten),rHap.numMarkers,format);
+                    else
+                        DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples(maxVcfSample<(MaxSample-NumVcfWritten)?maxVcfSample:(MaxSample-NumVcfWritten),rHap.numMarkers,format);
 
 
                 }
@@ -725,42 +1047,14 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         outFile + ".dose" + (gzip ? ".gz" : "")<<endl;
     }
 
-    cout<<endl<<" Writing summary (.info) files ... "<<endl;
+    PrintInfoFile(rHap,tHap,stats);
 
-    IFILE info = ifopen(outFile + ".info", "wb");
-
-    ifprintf(info, "SNP\tREF\tALT\tMajor\tMinor\tMAF\tAvgCall\tRsq\tGenotyped\tLooRsq\tEmpR\tEmpRsq\tDose1\tDose2\n");
-    for (int i = rHap.PrintStartIndex; i <= rHap.PrintEndIndex; i++)
-    {
-
-        ifprintf(info, "%s\t%s\t%s\t%s\t%s\t%.5f\t%.5f\t%.5f\t",
-            rHap.VariantList[i].name.c_str(),
-            rHap.VariantList[i].refAlleleString.c_str(),
-            rHap.VariantList[i].altAlleleString.c_str(),
-            rHap.VariantList[i].MajAlleleString.c_str(),
-            rHap.VariantList[i].MinAlleleString.c_str(),
-            stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),
-            stats.AverageCallScore(i),
-            stats.Rsq(i));
-
-        if (!tHap.missing[i])
-        {
-            ifprintf(info, "Genotyped\t%.3f\t%.3f\t%.5f\t%.5f\t%.5f\n",
-              stats.LooRsq(i), stats.EmpiricalR(i), stats.EmpiricalRsq(i),
-              stats.LooMajorDose(i), stats.LooMinorDose(i));
-        }
-        else
-         ifprintf(info, "-\t-\t-\t-\t-\t-\n");
-    }
-    ifclose(info);
-
-    cout<<endl<<" Summary information written to          : "<<outFile<<".info"<<endl;
     time_load = time(0) - time_prev;
     cout << "\n Time taken for imputation = " << time_load << " seconds."<<endl<<endl;
 
 
     if(vcfOutput)
-        MergeFinalVcf(rHap,tHap,stats,NovcfParts);
+        MergeFinalVcfAllVariants(rHap,tHap,stats,NovcfParts);
 
 }
 

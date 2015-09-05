@@ -14,6 +14,7 @@ public:
     string name;
     int bp;
     string chr;
+    string rsid;
     char refAllele,altAllele;
     string refAlleleString,altAlleleString;
     string MajAlleleString,MinAlleleString;
