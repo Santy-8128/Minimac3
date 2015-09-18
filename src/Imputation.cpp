@@ -433,7 +433,6 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
 
     }
 
-   ifprintf(vcfdosepartial,"\n");
 
     for(int i=1;i<=MaxIndex;i++)
     {
@@ -684,7 +683,7 @@ void Imputation::PrintInfoFile(HaplotypeSet &rHap,HaplotypeSet &tHap,  Imputatio
 {
     cout<<endl<<" Writing summary (.info) files ... "<<endl;
     IFILE info = ifopen(outFile + ".info", "wb");
-    ifprintf(info, "SNP\tREF\tALT\tMajor\tMinor\tDoseMAF\tRefMAF\tAvgCall\tRsq\tGenotyped\tLooRsq\tEmpR\tEmpRsq\tDose1\tDose2\n");
+    ifprintf(info, "SNP\tREF\tALT\tMajor\tMinor\tDoseMAF\tRefAF\tAvgCall\tRsq\tGenotyped\tLooRsq\tEmpR\tEmpRsq\tDose1\tDose2\n");
 
 
     int i=0;
