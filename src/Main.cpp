@@ -571,7 +571,8 @@ void Minimac3Version()
 	printf("\n\n -------------------------------------------------------------------------------- \n");
 	printf("          Minimac3 - Fast Imputation Based on State Space Reduction HMM\n");
 	printf(" --------------------------------------------------------------------------------\n");
-    printf(" (c) 2014 - Sayantan Das, Christian Fuchsberger, Goncalo Abecasis, Mary Kate Wing \n");
+    printf("           (c) 2014 - Sayantan Das, Christian Fuchsberger, David Hinds\n");
+    printf("                             Mary Kate Wing, Goncalo Abecasis \n");
 //	printf(" Version	: Undocumented Release\n");
 //	printf(" Built		: sayantan\n\n");
 	cout<<"\n Version: " << VERSION<< ";\n Built: " << DATE << " by " << USER << std::endl;

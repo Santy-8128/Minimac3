@@ -41,9 +41,9 @@ void HaplotypeSet::PrintDosageForVcfOutputForIDMaleSamples(IFILE vcfdose,
 
                 if(colonIndex)
                     ifprintf(vcfdose,":");
-                if(majorIsReference)
-                    ifprintf(vcfdose,"%.3f",1-x);
-                else
+//                if(majorIsReference)
+//                    ifprintf(vcfdose,"%.3f",1-x);
+//                else
                     ifprintf(vcfdose,"%.3f",x);
                 colonIndex=true;
             }
@@ -55,16 +55,16 @@ void HaplotypeSet::PrintDosageForVcfOutputForIDMaleSamples(IFILE vcfdose,
                 if(colonIndex)
                     ifprintf(vcfdose,":");
                 double p1,p3;
-                if(majorIsReference)
-                {
-                    p1=x;
-                    p3=(1-x);
-                }
-                else
-                {
+//                if(majorIsReference)
+//                {
+//                    p1=x;
+//                    p3=(1-x);
+//                }
+//                else
+//                {
                     p3=x;
                     p1=(1-x);
-                }
+//                }
 
                 ifprintf(vcfdose,"%.3f,%.3f",p1,p3);
 
@@ -124,10 +124,11 @@ void HaplotypeSet::PrintDosageForVcfOutputForID(IFILE vcfdose, int MarkerIndex,b
 
                 if(colonIndex)
                     ifprintf(vcfdose,":");
-                if(majorIsReference)
-                    ifprintf(vcfdose,"%.3f",1-x+1-y);
-                else
-                    ifprintf(vcfdose,"%.3f",x+ y);
+//                if(majorIsReference)
+//                    ifprintf(vcfdose,"%.3f",1-x+1-y);
+//                else
+
+                ifprintf(vcfdose,"%.3f",x+ y);
                 colonIndex=true;
             }
 
@@ -139,18 +140,18 @@ void HaplotypeSet::PrintDosageForVcfOutputForID(IFILE vcfdose, int MarkerIndex,b
                     ifprintf(vcfdose,":");
                 colonIndex=false;
                 double p1,p2,p3;
-                if(majorIsReference)
-                {
-                    p1=x*y;
-                    p2=x*(1-y)+y*(1-x);
-                    p3=(1-x)*(1-y);
-                }
-                else
-                {
+//                if(majorIsReference)
+//                {
+//                    p1=x*y;
+//                    p2=x*(1-y)+y*(1-x);
+//                    p3=(1-x)*(1-y);
+//                }
+//                else
+//                {
                     p3=x*y;
                     p2=x*(1-y)+y*(1-x);
                     p1=(1-x)*(1-y);
-                }
+//                }
 
                 ifprintf(vcfdose,"%.3f,%.3f,%.3f",p1,p2,p3);
 
@@ -404,14 +405,6 @@ void HaplotypeSet::SaveDosageForVcfOutputSampleWiseChrX(int SamID,string &Sample
     ImputedAlleles[SamID]=impAlleles1;
 }
 
-
-//void HaplotypeSet::SaveDosageForVcfOutput(int hapID,vector<float> &dose,vector<bool> &impAlleles)
-//{
-//
-//    Dosage[hapID]=dose;
-//    ImputedAlleles[hapID]=impAlleles;
-//
-//}
 
 
 
@@ -859,42 +852,86 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
 
 
                 pch4=strtok_r (NULL,";", &end_str_new4);
-                tempString3=(string)(pch4);
 
-                char *pch5, *end_str_new5;
-                pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
-                pch5=strtok_r (NULL,"=", &end_str_new5);
-                tempVariant.refAllele=(char)atoi(pch5);
-
-                pch4=strtok_r (NULL,";", &end_str_new4);
-                tempString3=(string)(pch4);
-
-                end_str_new5=NULL;
-                pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
-                pch5=strtok_r (NULL,"=", &end_str_new5);
-                tempVariant.altAllele=(char)atoi(pch5);
-
-                pch4=strtok_r (NULL,";", &end_str_new4);
-                if(pch4!=NULL)
+                while(pch4!=NULL)
                 {
                     tempString3=(string)(pch4);
-
-                    end_str_new5=NULL;
+                    char *pch5,*pch6,*end_str_new5;
                     pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
-                    pch5=strtok_r (NULL,"=", &end_str_new5);
-                    tempError=atof(pch5);
+                    pch6=strtok_r (NULL,"=", &end_str_new5);
 
-                    pch4=strtok_r (NULL,";", &end_str_new4);
-                    if(pch4!=NULL)
+                    if((string)pch5=="Err")
                     {
-                        tempString3=(string)(pch4);
-                        end_str_new5=NULL;
-                        pch5=strtok_r ((char*)tempString3.c_str(),"=", &end_str_new5);
-                        pch5=strtok_r (NULL,"=", &end_str_new5);
-                        tempRecom=atof(pch5);
+                        tempError=atof(pch6);
+                    }
+                    if((string)pch5=="Recom")
+                    {
+                        tempRecom=atof(pch6);
+                    }
+                    pch4=strtok_r (NULL,";", &end_str_new4);
+                }
+
+                char Rallele=0,Aallele=0;
+
+
+                string refAllele=tempVariant.refAlleleString;
+                string altAllele=tempVariant.altAlleleString;
+
+                if (strlen(refAllele.c_str()) == 1
+                     && strlen(altAllele.c_str()) == 1)
+                {
+                    switch (refAllele[0])
+                    {
+                        case 'A': case 'a': Rallele = 1; break;
+                        case 'C': case 'c': Rallele = 2; break;
+                        case 'G': case 'g': Rallele = 3; break;
+                        case 'T': case 't': Rallele = 4; break;
+                        case 'D': case 'd': Rallele = 5; break;
+                        case 'I': case 'i': Rallele = 6; break;
+                        case 'R': case 'r': Rallele = 7; break;
+                        default:
+                        {
+                                   cout << "\n\n Data Inconsistency !!! \n";
+                                   cout << " Error with reference allele for marker : " << tempVariant.rsid<< " in M3VCF File : " << m3vcfFile;
+                                   cout << "\n VCF reference alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
+                                   cout << " " << tempVariant.rsid << " has " << refAllele << endl;
+                                   cout << "\n Program Aborting ... \n\n";
+                                   abort();
+//                                       return false;
+                        }
                     }
 
+                    switch (altAllele[0])
+                    {
+                        case 'A': case 'a': Aallele = 1; break;
+                        case 'C': case 'c': Aallele = 2; break;
+                        case 'G': case 'g': Aallele = 3; break;
+                        case 'T': case 't': Aallele = 4; break;
+                        case 'D': case 'd': Aallele = 5; break;
+                        case 'I': case 'i': Aallele = 6; break;
+                        case 'R': case 'r': Aallele = 7; break;
+                        default:
+                        {
+                                   cout << "\n\n Data Inconsistency !!! \n";
+                                   cout << " Error with alternate allele for marker : " <<tempVariant.rsid<< " in M3VCF File : " << m3vcfFile;
+                                   cout << "\n VCF alternate alleles for SNPs can only be A(a), C(c), G(g), or T(t).\n";
+                                   cout << " " << tempVariant.rsid << " has " << altAllele << endl;
+                                   cout << "\n Program Aborting ... \n\n";
+                                   abort();
+                        }
+                    }
                 }
+                else
+                {
+                    Rallele = 7;
+                    if(strlen(refAllele.c_str())<strlen(altAllele.c_str()))
+                        Aallele=6;
+                    else
+                        Aallele=5;
+                }
+                tempVariant.refAllele=Rallele;
+                tempVariant.altAllele=Aallele;
+
 
 
                 if(tempIndex<(tempVarCount-1) || blockIndex==(NoBlocks-1))
@@ -1077,8 +1114,9 @@ void HaplotypeSet::writem3vcfFile(String &filename,bool &gzip)
             ifprintf(m3vcffile, "%d\t",VariantList[j+ReducedStructureInfo[i].startIndex].bp);
             ifprintf(m3vcffile, "%s\t",RsId?VariantList[j+ReducedStructureInfo[i].startIndex].rsid.c_str():VariantList[j+ReducedStructureInfo[i].startIndex].name.c_str());
             ifprintf(m3vcffile, "%s\t%s\t.\t.\t",VariantList[j+ReducedStructureInfo[i].startIndex].refAlleleString.c_str(),VariantList[j+ReducedStructureInfo[i].startIndex].altAlleleString.c_str());
-            ifprintf(m3vcffile, "B%d.M%d;R=%d;A=%d",i+1,j+1,VariantList[j+ReducedStructureInfo[i].startIndex].refAllele,
-                     VariantList[j+ReducedStructureInfo[i].startIndex].altAllele);
+//            ifprintf(m3vcffile, "B%d.M%d;R=%d;A=%d",i+1,j+1,VariantList[j+ReducedStructureInfo[i].startIndex].refAllele,
+//                     VariantList[j+ReducedStructureInfo[i].startIndex].altAllele);
+            ifprintf(m3vcffile, "B%d.M%d",i+1,j+1);
             if(Error.size()>0)
                 ifprintf(m3vcffile, ";Err=%.5g;Recom=%.5g",
                      Error[j+ReducedStructureInfo[i].startIndex],(j+ReducedStructureInfo[i].startIndex)<(int)Recom.size()?Recom[j+ReducedStructureInfo[i].startIndex]:0);
@@ -1270,12 +1308,23 @@ bool HaplotypeSet::FasterLoadHaplotypes(String filename, int maxIndiv, int maxMa
     }
 
 
-
+    individualName.clear();
 	for (int i = 0; i < numSamplesRead; i++)
 	{
 		string tempName(header.getSampleName(i));
 		individualName.push_back(tempName);
 	}
+
+
+    if(individualName.size()==0)
+    {
+        cout << "\n No haplotypes recorded from VCF Input File : "<<filename<<endl;
+		cout << " Please check the file properly..\n";
+		cout << " Program Aborting ... "<<endl;
+		return false;
+    }
+
+
 
     string refAllele,altAllele,PrefrefAllele,PrevaltAllele,cno,fixCno,id;
     int bp;
@@ -1496,6 +1545,16 @@ bool HaplotypeSet::FasterLoadHaplotypes(String filename, int maxIndiv, int maxMa
     std::cout << " Number of Markers with duplicate ID:POS:REF:ALT     : " << duplicates << endl;
     std::cout << " Number of Insertions                                : " << insertions << endl;
 	std::cout << " Number of Deletions                                 : " << deletions << endl;
+
+
+    if(numReadRecords==0)
+    {
+        cout << "\n No Markers recorded from VCF Input File : "<<filename<<endl;
+		cout << " Please check the file properly..\n";
+		cout << " Program Aborting ... "<<endl;
+		return false;
+    }
+
 
 	if (maxIndiv == 0)
 		maxIndiv = numSamplesRead;
@@ -1909,14 +1968,6 @@ bool HaplotypeSet::FasterLoadHaplotypes(String filename, int maxIndiv, int maxMa
     optEndPoints.push_back(ReducedStructureInfo[i-1].endIndex);
 
 
-    if(individualName.size()==0)
-    {
-        cout << "\n No haplotypes recorded from VCF Input File : "<<filename<<endl;
-		cout << " Please check the file properly..\n";
-		cout << " Program Aborting ... "<<endl;
-		return false;
-    }
-
     numMarkers = markerName.size();
     std::cout << "\n Haplotype Set successfully loaded from VCF File     : " << filename << endl;
 	inFile.close();
@@ -2214,12 +2265,9 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 {
 
 
-//	bool rsid=false;
 	VcfFileReader inFile;
 	VcfHeader header;
 	VcfRecord record;
-//	vector<string> tempMarkerNames;
-//	tempMarkerNames.clear();
     string RefCno=rHap.VariantList[0].chr;
 
 
@@ -2314,7 +2362,15 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
                 }
         }
         else
+        {
             Rallele = 7;
+            if(strlen(refAllele.c_str())<strlen(altAllele.c_str()))
+                Aallele=6;
+            else
+                Aallele=5;
+        }
+
+
         variant thisVariant(currID,cno,bp);
         if(flag==0)
         {
@@ -2339,9 +2395,18 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
     std::cout << " Number of Markers with inconsistent Ref/Alt Allele  : " << inconsistent << endl;
     std::cout << " Number of Markers on other chromosomes (Non-Ref)    : " << otherChrom << endl;
 
+    if(numActualRecords==0)
+    {
+        cout << "\n No Markers recorded from VCF Input File : "<<filename<<endl;
+		cout << " Please check the file properly..\n";
+		cout << " Program Aborting ... "<<endl;
+		return false;
+    }
+
+
     int refMarkerCount=(int)rHap.VariantList.size();
 
-    rHap.RefTypedIndex.clear();
+    vector<int> TargetMissing;
 //    RefTypedIndex.resize(numReadRecords,0)
 
 
@@ -2371,9 +2436,6 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 		flag=0;
 		while(counter<refMarkerCount && flag==0 && rHap.VariantList[counter].bp<=VariantList[j].bp)
         {
-
-
-            rHap.RefTypedIndex.push_back(-1);
 
             if(rHap.VariantList[counter].chr==VariantList[j].chr
              && rHap.VariantList[counter].bp==VariantList[j].bp)
@@ -2434,7 +2496,7 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
                        && VariantList[j].bp<=rHap.OrigEndPos)
 
                     {
-                        rHap.RefTypedIndex.push_back(GWASOnlycounter);
+                        TargetMissing.push_back(counter-1);
                         GWASOnlycounter++;
                         GWASOnlySkipIndex.push_back(true);
                     }
@@ -2446,7 +2508,8 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
                 }
                 else
                 {
-                    rHap.RefTypedIndex.push_back(GWASOnlycounter);
+
+                    TargetMissing.push_back(counter-1);
                     GWASOnlycounter++;
                     GWASOnlySkipIndex.push_back(true);
                 }
@@ -2458,16 +2521,49 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
             counter = prevCounter;
             GWASCounterCount++;
         }
+
 	}
 
+    counter=0;
+    rHap.RefTypedIndex.clear();
+    int ThisIndex=0;
 
-	while(counter<refMarkerCount)
+	while(counter<refMarkerCount && ThisIndex<(int)TargetMissing.size())
+    {
+        if(counter<=TargetMissing[ThisIndex])
+        {
+            rHap.RefTypedIndex.push_back(-1);
+            counter++;
+        }
+        else
+        {
+            rHap.RefTypedIndex.push_back(ThisIndex);
+            ThisIndex++;
+        }
+    }
+    while(counter<refMarkerCount)
     {
         rHap.RefTypedIndex.push_back(-1);
         counter++;
     }
+    while(ThisIndex<(int)TargetMissing.size())
+    {
+        rHap.RefTypedIndex.push_back(ThisIndex);
+        ThisIndex++;
+    }
 
     rHap.RefTypedTotalCount=GWASOnlycounter+rHap.numMarkers;
+
+
+    if(rHap.RefTypedTotalCount!=(int)rHap.RefTypedIndex.size())
+    {
+        cout<<endl<<endl<<" Error in Code Construction [ERROR: 007] !!! "<<endl;
+        cout<<" Please Contact author with ERROR number urgently : sayantan@umich.edu "<<endl;
+        cout<<" Program Exiting ..."<<endl<<endl;
+        abort();
+    }
+
+
 
 	numHaplotypes = 0;
     numMarkers = 0;
@@ -2554,7 +2650,6 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 	inFile.readRecord(record);
 
 
-	//haplotypes.resize(numHaplotypes);
 	haplotypesUnscaffolded.resize(numHaplotypes);
 	MissingSampleUnscaffolded.resize(numHaplotypes);
 
@@ -2851,7 +2946,7 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 
 
 	std::cout << "\n\n Number of Haplotypes Recorded                       : " << (haplotypesUnscaffolded.size()) << endl;
-std::cout << " Number of Markers Recorded for Imputation           : " << markerName.size() << endl;
+    std::cout << " Number of Markers Recorded for Imputation           : " << markerName.size() << endl;
 
     if(TypedOnly)
         std::cout << " Number of Markers Only in GWAS Panel Recorded       : " <<GWASOnlycounter << endl;

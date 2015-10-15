@@ -423,7 +423,7 @@ void MarkovModel::Impute(int position, bool observed, bool observedMiss,
 
     float ptotal =Pref+Palt;
 
-    float pmajor = major[position]? Palt : Pref;
+//    float pmajor = major[position]? Palt : Pref;
 
 
     bool mle = false;
@@ -435,18 +435,16 @@ void MarkovModel::Impute(int position, bool observed, bool observedMiss,
 
 
 
-    imputedDose[position] += imputedHap[position]= (pmajor / ptotal);
+    imputedDose[position] += imputedHap[position]= (Palt / ptotal);
 //    imputedAlleles[position] = mle;
     imputedAlleleNumber[position] = mle;
 
-    double fmatch = 1.0 / (1. - Error[position] + Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError );
-    double fmismatch = 1.0 / (Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError);
-
-
-
-
     if(!observedMiss)
     {
+
+        double fmatch = 1.0 / (1. - Error[position] + Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError );
+        double fmismatch = 1.0 / (Error[position] * ( major[position]? alleleFreq[position] : 1-alleleFreq[position]  ) + backgroundError);
+
         if(observed)
         {
             Palt *= fmatch;
@@ -457,11 +455,11 @@ void MarkovModel::Impute(int position, bool observed, bool observedMiss,
             Pref *= fmatch;
             Palt *= fmismatch;
         }
-    }
 
-    ptotal =Pref+Palt;
-    pmajor = major[position]? Palt : Pref;
-    leaveOneOut[position] = pmajor / ptotal;
+        ptotal =Pref+Palt;
+    //    pmajor = major[position]? Palt : Pref;
+        leaveOneOut[position] = Palt / ptotal;
+    }
 
 
 }
@@ -629,9 +627,6 @@ void MarkovModel::Condition(int markerPos,vector<float> &Prob,
             noRecomProb[i]*=prandom;
         }
     }
-
-
-
 }
 
 
@@ -673,8 +668,6 @@ bool MarkovModel::Transpose(vector<float> &from,
     {
         to[i]=from[i]*complement+(uniqueCardinality[i]*sum);
     }
-
-
 
     return tempPrecisionJumpFlag;
 

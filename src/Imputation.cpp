@@ -14,6 +14,9 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
     cout<<endl;
 
 
+   #ifdef _OPENMP
+        omp_set_num_threads(5);
+    #endif
 
     if(rHap.Recom.size()>0)
     {
@@ -561,8 +564,8 @@ void Imputation::PrintDosageData(HaplotypeSet &rHap,HaplotypeSet &tHap,
                         outAllele1=1.0;
                 }
 
-                if(!tHap.major[MarkerIndex])
-                    outAllele1=1-outAllele1;
+//                if(!tHap.major[MarkerIndex])
+//                    outAllele1=1-outAllele1;
 
                 ifprintf(dosages, "\t%.3f", outAllele1);
             }
@@ -589,11 +592,11 @@ void Imputation::PrintDosageData(HaplotypeSet &rHap,HaplotypeSet &tHap,
 
                 }
 
-                if(!tHap.major[MarkerIndex])
-                {
-                    outAllele1=1-outAllele1;
-                    outAllele2=1-outAllele2;
-                }
+//                if(!tHap.major[MarkerIndex])
+//                {
+//                    outAllele1=1-outAllele1;
+//                    outAllele2=1-outAllele2;
+//                }
 
                 ifprintf(dosages, "\t%.3f", outAllele1+outAllele2);
             }
@@ -658,8 +661,8 @@ void Imputation::PrintHaplotypeData(HaplotypeSet &rHap,HaplotypeSet &tHap,
                         outAllele1=1.0;
             }
 
-            if(!tHap.major[MarkerIndex])
-                outAllele1=1-outAllele1;
+//            if(!tHap.major[MarkerIndex])
+//                outAllele1=1-outAllele1;
 
 
             ifprintf(haps, "%c", labels[(int) (a1?
@@ -683,7 +686,7 @@ void Imputation::PrintInfoFile(HaplotypeSet &rHap,HaplotypeSet &tHap,  Imputatio
 {
     cout<<endl<<" Writing summary (.info) files ... "<<endl;
     IFILE info = ifopen(outFile + ".info", "wb");
-    ifprintf(info, "SNP\tREF\tALT\tMajor\tMinor\tDoseMAF\tRefAF\tAvgCall\tRsq\tGenotyped\tLooRsq\tEmpR\tEmpRsq\tDose1\tDose2\n");
+    ifprintf(info, "SNP\tREF(0)\tALT(1)\tALT_Frq\tMAF\tAvgCall\tRsq\tGenotyped\tLooRsq\tEmpR\tEmpRsq\tDose0\tDose1\n");
 
 
     int i=0;
@@ -695,14 +698,12 @@ void Imputation::PrintInfoFile(HaplotypeSet &rHap,HaplotypeSet &tHap,  Imputatio
 
             if(i>=rHap.PrintStartIndex && i <= rHap.PrintEndIndex)
             {
-                ifprintf(info, "%s\t%s\t%s\t%s\t%s\t%.5f\t%.5f\t%.5f\t%.5f\t",
+                ifprintf(info, "%s\t%s\t%s\t%.5f\t%.5f\t%.5f\t%.5f\t",
                 RsId? rHap.VariantList[i].rsid.c_str(): rHap.VariantList[i].name.c_str(),
                 rHap.VariantList[i].refAlleleString.c_str(),
                 rHap.VariantList[i].altAlleleString.c_str(),
-                rHap.VariantList[i].MajAlleleString.c_str(),
-                rHap.VariantList[i].MinAlleleString.c_str(),
+                stats.AlleleFrequency(i),
                 stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),
-                rHap.AlleleFreq[i],
                 stats.AverageCallScore(i),
                 stats.Rsq(i));
 
@@ -721,18 +722,18 @@ void Imputation::PrintInfoFile(HaplotypeSet &rHap,HaplotypeSet &tHap,  Imputatio
         {
             variant ThisTypedVariant =tHap.TypedOnlyVariantList[rHap.RefTypedIndex[index]];
 
-            ifprintf(info, "%s\t%s\t%s\t%s\t%s\t%.5f\t-\t-\t-\tTyped_Only\t-\t-\t-\t-\t-\n",
+            ifprintf(info, "%s\t%s\t%s\t%.5f\t%.5f\t-\t-\tTyped_Only\t-\t-\t-\t-\t-\n",
             RsId? ThisTypedVariant.rsid.c_str(): ThisTypedVariant.name.c_str(),
             ThisTypedVariant.refAlleleString.c_str(),
             ThisTypedVariant.altAlleleString.c_str(),
-            ThisTypedVariant.MajAlleleString.c_str(),
-            ThisTypedVariant.MinAlleleString.c_str(),
+            tHap.AlleleFreq[rHap.RefTypedIndex[index]],
             tHap.AlleleFreq[rHap.RefTypedIndex[index]] > 0.5 ?
                         1.0 - tHap.AlleleFreq[rHap.RefTypedIndex[index]] : tHap.AlleleFreq[rHap.RefTypedIndex[index]]);
 
         }
     }
     ifclose(info);
+
 
     cout<<endl<<" Summary information written to          : "<<outFile<<".info"<<endl;
    }

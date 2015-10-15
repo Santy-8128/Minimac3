@@ -6,6 +6,22 @@ Minimac3 Changes:
 --------------------------------------------------------------------------
 
 
+Version : 1.0.13
+Author  : Sayantan Das
+Date    : October 15, 2015
+
+        Updated the format of info file to report only REF and ALT 
+        alleles instead of Major and Minor allele. The ALT_Frq and
+        MAF can be compared to find minor allele. The usual .dose
+        and .hapDose file have been updated to report alternate al-
+        -llele dosage and NOT major allele dosage, like earlier ve-
+        -rsions of minimac. Also mended a bug related to variants
+        that were typed only, while using --allTypedVariants option.
+        Finally, added acknowledgements to David Hinds, for his
+        immense help in making the code faster.
+
+--------------------------------------------------------------------------
+
 Version : 1.0.12
 Author  : Sayantan Das
 Date    : September 5, 2015

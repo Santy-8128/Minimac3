@@ -41,8 +41,8 @@ void ImputationStatistics::Update(vector<float> &doses, vector<float> &loo
         {
             looSum[i] += loo[i];
             looSumSq[i] += loo[i] * loo[i];
-            looProduct[i] += (observed[i] == major[i]) ? loo[i] : 0.0;
-            looObserved[i] += (observed[i] == major[i]) ? 1.0 : 0.0;
+            looProduct[i] += (observed[i]) ? loo[i] : 0.0;
+            looObserved[i] += (observed[i]) ? 1.0 : 0.0;
             looCount[i]++;
         }
 }

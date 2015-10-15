@@ -77,103 +77,103 @@ void findUnique::AnalyzeBlocks(
    }
 
 
-double findUnique::FlushBlocks(vector<int> &optEndPoints,vector<ReducedHaplotypeInfo> &HapInfo,
-                               vector<variant> &varList, int LastflushPos,vector<String> & haplotypes,
-                                vector<int> & cost,
-                   vector<int> & bestComplexity, vector<int> & bestSlice, vector<vector<int> > &bestIndex)
-{
-
-    ReducedHaplotypeInfo tempInfo;
-    int where   = haplotypes[0].Length();
-    where--;
-    int newCost = cost[where+1];
-    int totalBlocks=0;
-    double totalComplexity = 0;
-    vector<int> examplars, labels;
-
-    vector<int> blockBoundaries;
-    blockBoundaries.clear();
-
-    // Work out optimal set of block boundaries
-
-    while (where != 0)
-      {
-      blockBoundaries.push_back(where);
-    totalBlocks++;
-      totalComplexity += bestComplexity[where+1];
-    where = where - bestSlice[where+1]+1;
- };
-
-
-
-    int blockStart = 0;
+//double findUnique::FlushBlocks(vector<int> &optEndPoints,vector<ReducedHaplotypeInfo> &HapInfo,
+//                               vector<variant> &varList, int LastflushPos,vector<String> & haplotypes,
+//                                vector<int> & cost,
+//                   vector<int> & bestComplexity, vector<int> & bestSlice, vector<vector<int> > &bestIndex)
+//{
 //
-    while (blockStart != (haplotypes[0].Length()-1))
-    {
-
-        int blockEnd = blockBoundaries.back();
-        blockBoundaries.pop_back();
-        examplars.clear();
-        examplars.push_back(bestIndex[blockEnd][0]);
-
-        labels.resize(bestIndex[blockEnd].size());
-        labels[bestIndex[blockEnd][0]] = 0;
-        int countCard=0;
-
-        for (int i = 1; i < (int) bestIndex[blockEnd].size(); i++)
-        {
-            int previous = bestIndex[blockEnd][i-1];
-            int current  = bestIndex[blockEnd][i];
-            countCard++;
-            for (int j = blockStart; j <= blockEnd; j++)
-            if (haplotypes[previous][j] != haplotypes[current][j])
-               {
-                examplars.push_back(current);
-               break;
-               }
-
-         labels[current] = examplars.size() - 1;
-
-         }
-
-        tempInfo.uniqueIndexMap=labels;
-
-        tempInfo.startIndex=blockStart+LastflushPos;
-        tempInfo.endIndex=LastflushPos+blockEnd;
-        tempInfo.uniqueCardinality.clear();
-        tempInfo.uniqueCardinality.resize(examplars.size(),0);
-        for (int i = 0; i < (int)labels.size(); i++)
-        {
-            tempInfo.uniqueCardinality[labels[i]]++;
-
-        }
-
-
-
-        tempInfo.uniqueHaps.resize(examplars.size());
-        for (int i = 0; i < (int)examplars.size(); i++)
-            tempInfo.uniqueHaps[i].resize(blockEnd-blockStart+1);
-
-        for (int j = 0; j < (int)examplars.size(); j++)
-       {
-
-           for (int i = blockStart; i <= blockEnd; i++)
-            {
-                tempInfo.uniqueHaps[j][i-blockStart]=haplotypes[examplars[j]][i]=='0'?varList[i+LastflushPos].refAllele:varList[i+LastflushPos].altAllele;
-            }
-
-    }
-
-        HapInfo.push_back(tempInfo);
-
-         blockStart = blockEnd;
-
-    }
-
-    return newCost;
-    }
-
-
+//    ReducedHaplotypeInfo tempInfo;
+//    int where   = haplotypes[0].Length();
+//    where--;
+//    int newCost = cost[where+1];
+//    int totalBlocks=0;
+//    double totalComplexity = 0;
+//    vector<int> examplars, labels;
+//
+//    vector<int> blockBoundaries;
+//    blockBoundaries.clear();
+//
+//    // Work out optimal set of block boundaries
+//
+//    while (where != 0)
+//      {
+//      blockBoundaries.push_back(where);
+//    totalBlocks++;
+//      totalComplexity += bestComplexity[where+1];
+//    where = where - bestSlice[where+1]+1;
+// };
+//
+//
+//
+//    int blockStart = 0;
+////
+//    while (blockStart != (haplotypes[0].Length()-1))
+//    {
+//
+//        int blockEnd = blockBoundaries.back();
+//        blockBoundaries.pop_back();
+//        examplars.clear();
+//        examplars.push_back(bestIndex[blockEnd][0]);
+//
+//        labels.resize(bestIndex[blockEnd].size());
+//        labels[bestIndex[blockEnd][0]] = 0;
+//        int countCard=0;
+//
+//        for (int i = 1; i < (int) bestIndex[blockEnd].size(); i++)
+//        {
+//            int previous = bestIndex[blockEnd][i-1];
+//            int current  = bestIndex[blockEnd][i];
+//            countCard++;
+//            for (int j = blockStart; j <= blockEnd; j++)
+//            if (haplotypes[previous][j] != haplotypes[current][j])
+//               {
+//                examplars.push_back(current);
+//               break;
+//               }
+//
+//         labels[current] = examplars.size() - 1;
+//
+//         }
+//
+//        tempInfo.uniqueIndexMap=labels;
+//
+//        tempInfo.startIndex=blockStart+LastflushPos;
+//        tempInfo.endIndex=LastflushPos+blockEnd;
+//        tempInfo.uniqueCardinality.clear();
+//        tempInfo.uniqueCardinality.resize(examplars.size(),0);
+//        for (int i = 0; i < (int)labels.size(); i++)
+//        {
+//            tempInfo.uniqueCardinality[labels[i]]++;
+//
+//        }
+//
+//
+//
+//        tempInfo.uniqueHaps.resize(examplars.size());
+//        for (int i = 0; i < (int)examplars.size(); i++)
+//            tempInfo.uniqueHaps[i].resize(blockEnd-blockStart+1);
+//
+//        for (int j = 0; j < (int)examplars.size(); j++)
+//       {
+//
+//           for (int i = blockStart; i <= blockEnd; i++)
+//            {
+//                tempInfo.uniqueHaps[j][i-blockStart]=haplotypes[examplars[j]][i]=='0'?varList[i+LastflushPos].refAllele:varList[i+LastflushPos].altAllele;
+//            }
+//
+//    }
+//
+//        HapInfo.push_back(tempInfo);
+//
+//         blockStart = blockEnd;
+//
+//    }
+//
+//    return newCost;
+//    }
+//
+//
 
 
 double findUnique::FlushBlocks(vector<ReducedHaplotypeInfo> &HapInfo,
