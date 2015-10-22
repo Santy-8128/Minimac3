@@ -14,9 +14,9 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
     cout<<endl;
 
 
-   #ifdef _OPENMP
-        omp_set_num_threads(5);
-    #endif
+//   #ifdef _OPENMP
+//        omp_set_num_threads(5);
+//    #endif
 
     if(rHap.Recom.size()>0)
     {
