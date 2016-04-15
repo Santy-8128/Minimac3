@@ -1,7 +1,7 @@
 # Name of your executable, replace sampleProgram with your program name
 EXE=Minimac3
 OPTFLAG_OPT = -O4 
-OPTFLAG_DEBUG = -ggdb -O0
+OPTFLAG_DEBUG = -ggdb -O0 
 ########################
 # Specify your Files:
 # TOOLBASE - files with both .cpp and .h.  Just include the base name.
@@ -65,7 +65,9 @@ OBJECTS_OMP := $(patsubst %,$(OBJDIR_OMP)/%,$(TOOLOBJ))
 
 openmp: USER_COMPILE_VARS = -fopenmp -DDATE="\"${DATE}\"" -DUSER="\"${USER}\""
 openmp: $(BINDIR_OPT)/$(OMP_EXE)
+openmp: OPTFLAG=$(OPTFLAG_OPT)
 
+#$(BINDIR_OPT)/$(OMP_EXE): OPFLAG=$(OPTFLAG_OPT)
 $(BINDIR_OPT)/$(OMP_EXE): PROG_OPT=$(BINDIR_OPT)/$(OMP_EXE)
 $(BINDIR_OPT)/$(OMP_EXE): OBJECTS_OPT=$(OBJECTS_OMP)
 $(BINDIR_OPT)/$(OMP_EXE): $(USER_LIBS) $(REQ_LIBS_OPT) $(OBJECTS_OMP) | $(BINDIR_OPT)
