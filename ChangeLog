@@ -5,6 +5,15 @@ Minimac3 Changes:
 --------------------------------------------------------------------------
 --------------------------------------------------------------------------
 
+Version : 1.0.14
+Author  : Sayantan Das
+Date    : April 15, 2016
+
+	Fixed a bug in the makefile that was missing the g++ -O4
+	optimization flag. As a result, the openmp version was 
+	3-4 times slower than expected.
+
+--------------------------------------------------------------------------
 
 Version : 1.0.13
 Author  : Sayantan Das
