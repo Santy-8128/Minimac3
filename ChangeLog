@@ -11,7 +11,8 @@ Date    : April 15, 2016
 
 	Fixed a bug in the makefile that was missing the g++ -O4
 	optimization flag. As a result, the openmp version was 
-	3-4 times slower than expected.
+	3-4 times slower than expected. Updated LibStatGen Library
+	files to remove some warnings/errors.
 
 --------------------------------------------------------------------------
 
