@@ -423,13 +423,26 @@ bool SamFile::IsOpen()
 // return: int - true = EOF; false = not eof.
 bool SamFile::IsEOF()
 {
+    if(myIsOpenForRead == false)
+    {
+        // Not open for read, return true.
+        return(true);
+    }
+    return(myInterfacePtr->isEOF(myFilePtr));
+}
+
+
+// Returns whether or not the file is a stream.
+// return: bool - true = stream; false = not stream/not open.
+bool SamFile::IsStream()
+{
     if (myFilePtr != NULL)
     {
-        // File Pointer is set, so return if eof.
-        return(ifeof(myFilePtr));
+        // File Pointer is set, so return if it is a stream.
+        return((myFilePtr->getFileName())[0] == '-');
     }
-    // File pointer is not set, so return true, eof.
-    return true;
+    // File pointer is not set, so return false, not a stream.
+    return false;
 }
 
 
