@@ -46,10 +46,11 @@ class ReducedHaplotypeInfo
 {
     public:
         int startIndex,endIndex;
-        //vector<int> uniqueRep;  // in reduced state space (which is finally enumerated by this vector) ... indices of original haplotypes which are representatives
         vector<int> uniqueCardinality; // has number of representatives for each unique representative
         vector<float> InvuniqueCardinality; // has number of representatives for each unique representative
         vector<int> uniqueIndexMap; // maps to corresponding item in the uniqueRep... required to map Constants and unfold fold probs
+        int BlockSize, RepSize;
+
 
 
         vector<vector<bool> > uniqueHaps;
@@ -68,7 +69,8 @@ class ReducedHaplotypeInfo
 
         startIndex=0;
         endIndex=0;
-        //uniqueRep.clear();
+        BlockSize=0;
+        RepSize=0;
         uniqueCardinality.clear();
         uniqueIndexMap.clear();
         uniqueHaps.clear();

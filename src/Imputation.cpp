@@ -1,9 +1,109 @@
 #include "Imputation.h"
 
+
+void Imputation::ImputeTraverse(HaplotypeSet &rHap,HaplotypeSet &tHap,int hapID,
+                              MarkovModel &MM,int group, vector<float> &recomProb,
+                              vector<float> &PrevRightFoldedProb,
+                              vector<float> &CurrentRightProb,
+                              vector<float> &CurrentNoRecoRightProb,
+                              HaplotypeSet &rHapMain)
+{
+
+    PrevRightFoldedProb.resize(rHap.ReducedStructureInfo[group-1].RepSize);
+
+    MM.foldProbabilities(PrevRightFoldedProb,group-1,
+                            rHap.ReducedStructureInfo[group-1],1,rHap.numHaplotypes);
+
+    MM.Impute(tHap,hapID,group-1,
+                            PrevRightFoldedProb,CurrentRightProb,CurrentNoRecoRightProb,
+                        rHap.ReducedStructureInfo[group-1],rHapMain.AlleleFreq);
+
+    splitFoldedProb(recomProb,CurrentRightProb,CurrentNoRecoRightProb);
+    MM.unfoldProbabilities(group-1,recomProb,CurrentNoRecoRightProb,
+                           PrevRightFoldedProb,1,
+                           rHap.ReducedStructureInfo,rHap.numHaplotypes);
+
+}
+
+
+void Imputation::EMTraverse(HaplotypeSet &rHap,HaplotypeSet &tHap,int hapID,
+                              MarkovModel &MM,int group, vector<float> &recomProb,
+                              vector<float> &PrevRightFoldedProb,
+                              vector<float> &CurrentRightProb,
+                              vector<float> &CurrentNoRecoRightProb,
+                              HaplotypeSet &rHapMain)
+{
+
+    PrevRightFoldedProb.resize(rHap.ReducedStructureInfo[group-1].RepSize);
+
+    MM.foldProbabilities(PrevRightFoldedProb,group-1,
+                            rHap.ReducedStructureInfo[group-1],1,rHap.numHaplotypes);
+
+    MM.CountExpected(tHap,hapID,group-1,
+                        PrevRightFoldedProb,CurrentRightProb,CurrentNoRecoRightProb,
+                        rHap.ReducedStructureInfo[group-1],rHapMain.AlleleFreq);
+
+
+
+    splitFoldedProb(recomProb,CurrentRightProb,CurrentNoRecoRightProb);
+    MM.unfoldProbabilities(group-1,recomProb,CurrentNoRecoRightProb,
+                           PrevRightFoldedProb,1,
+                           rHap.ReducedStructureInfo,rHap.numHaplotypes);
+
+}
+
+
+
+
+void Imputation::LeftTraverse(HaplotypeSet &rHap,HaplotypeSet &tHap,int hapID,
+                              MarkovModel &MM,int group, vector<float> &recomProb,
+                              HaplotypeSet &rHapMain)
+{
+    vector<int> &optStructure=rHapMain.optEndPoints;
+
+    int Start=optStructure[group-1];
+    int End=optStructure[group];
+    vector<vector<float> > &ThisBlockLeftProb=LowMemory ? MM.ThisBlockLeftProb : MM.leftProb[group-1];
+
+    MM.foldProbabilities(ThisBlockLeftProb[0],group-1,rHap.ReducedStructureInfo[group-1],
+                            0,rHap.numHaplotypes);
+    MM.CurrentLeftNoRecoProb=ThisBlockLeftProb[0];
+
+    MM.WalkLeft(tHap,hapID,group-1,
+                   rHap.ReducedStructureInfo[group-1],rHapMain.AlleleFreq);
+
+    splitFoldedProb(recomProb,ThisBlockLeftProb[End-Start],MM.CurrentLeftNoRecoProb);
+    MM.unfoldProbabilities(group-1,recomProb,MM.CurrentLeftNoRecoProb,
+                                       ThisBlockLeftProb[0],0,
+                                       rHap.ReducedStructureInfo,rHap.numHaplotypes);
+}
+
+
+double Imputation::CalculateLikelihood(HaplotypeSet &rHap,MarkovModel &MM)
+{
+    double tempLogLikelihoodValue=0.0;
+    vector<vector<float> > &LastBlock=LowMemory? MM.ThisBlockLeftProb:MM.leftProb[rHap.NoBlocks-1];
+    ReducedHaplotypeInfo &TempBlock=rHap.ReducedStructureInfo[rHap.NoBlocks-1];
+    vector<float> &LastColumn=LastBlock[TempBlock.BlockSize-1];
+
+    for(int tempVar=0;tempVar<TempBlock.RepSize;tempVar++)
+    {
+        tempLogLikelihoodValue+=LastColumn[tempVar];
+    }
+
+    tempLogLikelihoodValue=log(tempLogLikelihoodValue);
+    tempLogLikelihoodValue-=(MM.NoPrecisionJumps*log(1e15));
+    return tempLogLikelihoodValue;
+}
+
+
+
+
+
 MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &tHap,vector<int> &optStructure,bool NoTargetEstimation)
 {
     MarkovParameters *MP=new MarkovParameters(rHap.numMarkers);
-    rHap.CalculateFreq();
+
 
     cout<<" ------------------------------------------------------------------------------"<<endl;
     cout<<"                             PARAMETER ESTIMATION                              "<<endl;
@@ -11,12 +111,9 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
 
     int time_prev = time(0);
 
+    rHap.CreateSummary();
     cout<<endl;
 
-
-//   #ifdef _OPENMP
-//        omp_set_num_threads(5);
-//    #endif
 
     if(rHap.Recom.size()>0)
     {
@@ -97,96 +194,65 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
         {
             // Reference leave one out (loo) panel
             HaplotypeSet rHap_loo;
-            rHap_loo.numHaplotypes=rHap.numHaplotypes-1;
-            rHap_loo.numMarkers=rHap.numMarkers;
-            vector<float> foldedProb,recomProb,noRecomProb,
-                            rightProbTemp,probAlleleNoStandardize(8,0.0);
+            LooOptimalStructure(i,rHap,rHap_loo);
 
            // Target with one panel at position i
             HaplotypeSet tHap_loo;
-
-            vector<bool> tempHap(rHap.numMarkers);
-            rHap.reconstructHaplotype(tempHap,i);
-            tHap_loo.Create(tempHap);
-
-            // New Strcture with State Space Reduction
-            vector<ReducedHaplotypeInfo> StructureInfo_loo;
-            LooOptimalStructure(StructureInfo_loo,i,rHap);
+            tHap_loo.Create(i,rHap);
 
             // Create Markov Model
+            vector<float> PrevRightFoldedProb,CurrentRightProb,CurrentNoRecoRightProb,recomProb;
+            PrevRightFoldedProb.reserve(rHap.maxRepSize);
+            CurrentRightProb.reserve(rHap.maxRepSize);
+            CurrentNoRecoRightProb.reserve(rHap.maxRepSize);
+            recomProb.reserve(rHap.maxRepSize);
+
 
             vector<bool> missing_loo(markerCount,false);
-
-            MarkovModel MM(tHap_loo,rHap_loo,missing_loo,rHap.major);
-
+                     MarkovModel MM(tHap_loo,rHap_loo,missing_loo,rHap.major,LowMemory);
             MM.CopyParameters(MP);
+            MM.initializeMatrices(rHap_loo,tHap_loo);
+            MM.ReinitializeMatrices();
 
-            MM.initializeMatrices(tHap_loo,rHap_loo,optStructure,StructureInfo_loo);
 
-            for(int group=1;group<(int)optStructure.size();group++)
+            if(!missing_loo[0])
             {
-
-                MM.foldProbabilities(foldedProb,group-1,StructureInfo_loo[group-1],0,refCount-1);
-                MM.leftNoRecoProb[group-1][0]=foldedProb;
-
-
-                if(group==1 && !missing_loo[0])
-                    {
-                        if(!tHap_loo.getMissingScaffoldedHaplotype(0,0))
-                            {
-
-                                Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],
-                                        tHap_loo.getScaffoldedHaplotype(0,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
-                                        tHap_loo.getScaffoldedHaplotype(0,0),MM.backgroundError, foldedProb.size(),StructureInfo_loo[0]);
+                if(!tHap_loo.getMissingScaffoldedHaplotype(0,0))
+                {
+                    ConditionJunctionProb(rHap_loo,0,MM.junctionLeftProb[0],
+                                          MM.Error[0],
+                                          tHap_loo.getScaffoldedHaplotype(0,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
+                                          tHap_loo.getScaffoldedHaplotype(0,0),
+                                          MM.backgroundError,
+                                          rHap_loo.ReducedStructureInfo[0]);
                             }
-                    }
-
-
-                int hapID=0;
-                MM.WalkLeft(tHap_loo,hapID,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],
-                            foldedProb,optStructure[group-1],optStructure[group],
-                            StructureInfo_loo[group-1],rHap.AlleleFreq);
-                splitFoldedProb(recomProb,MM.leftProb[group-1][optStructure[group]-optStructure[group-1]],MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]]);
-                MM.unfoldProbabilities(group-1,recomProb,MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]],foldedProb,0,StructureInfo_loo,refCount-1);
-
             }
 
+            for(int group=1;group<=rHap.NoBlocks;group++)
+            {
+                LeftTraverse(rHap_loo,tHap_loo,0,MM,group,recomProb,rHap);
+            }
+
+            double tempLogLikelihoodValue=CalculateLikelihood(rHap_loo,MM);
 
             if(em)
             {
-                for(int group=optStructure.size()-1;group>0;group--)
+                for(int group=rHap.NoBlocks;group>0;group--)
                 {
-                    MM.foldProbabilities(foldedProb,group-1,StructureInfo_loo[group-1],1,refCount-1);
-                    noRecomProb=foldedProb;
-                    MM.CountExpected(tHap_loo,0,foldedProb,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],rightProbTemp,noRecomProb,
-                                     MM.junctionLeftProb[group-1],MM.junctionRightProb[group], optStructure[group-1],
-                                     optStructure[group],StructureInfo_loo[group-1],rHap.AlleleFreq);
-                    splitFoldedProb(recomProb,rightProbTemp,noRecomProb);
-                    MM.unfoldProbabilities(group-1,recomProb,noRecomProb,foldedProb,1,StructureInfo_loo,refCount-1);
+                    EMTraverse(rHap_loo,tHap_loo,0,MM,group,
+                              recomProb,PrevRightFoldedProb,
+                              CurrentRightProb,CurrentNoRecoRightProb,rHap);
                 }
-
             MM.empiricalCount++;
-
             }
+
             #pragma omp critical
             {
                 (*MP)+=MM;
-                double tempLogLikelihoodValue=0.0;
-                for(int tempVar=0;tempVar<(int)MM.leftProb[MM.leftProb.size()-1][MM.leftProb[MM.leftProb.size()-1].size()-1].size();tempVar++)
-                {
-                    tempLogLikelihoodValue+=MM.leftProb[MM.leftProb.size()-1][MM.leftProb[MM.leftProb.size()-1].size()-1][tempVar];
-                }
-
-
-
-                tempLogLikelihoodValue=log(tempLogLikelihoodValue);
-                tempLogLikelihoodValue-=(MM.NoPrecisionJumps*log(1e15));
                 LogLikelihoodValue+=tempLogLikelihoodValue;
             }
 
         }
-
-
 
         if(!NoTargetEstimation && round>=EstimationRounds/2)
         {
@@ -195,74 +261,54 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
             #pragma omp parallel for
             for (int i = 0; i < iterations; i++)
             {
-                MarkovModel MM(tHap,rHap,tHap.missing,rHap.major);
-                vector<float> foldedProb,recomProb,noRecomProb, rightProbTemp,probAlleleNoStandardize(8,0.0);
-
+                MarkovModel MM(tHap,rHap,tHap.missing,rHap.major,LowMemory);
+                vector<float> PrevRightFoldedProb,CurrentRightProb,CurrentNoRecoRightProb,recomProb;
 
                 MM.CopyParameters(MP);
                 //initializeMatrices(tHap,rHap,optStructure,rHap.ReducedStructureInfo);
-                MM.initializeMatrices(tHap,rHap,optStructure,rHap.ReducedStructureInfo);
-                for(int group=1;group<(int)optStructure.size();group++)
+                MM.initializeMatrices(rHap,tHap);
+                MM.ReinitializeMatrices();
+
+                if(!tHap.missing[0])
                 {
-                    MM.foldProbabilities(foldedProb,group-1,rHap.ReducedStructureInfo[group-1],0,refCount);
-                    MM.leftNoRecoProb[group-1][0]=foldedProb;
+                    if(!tHap.getMissingScaffoldedHaplotype(i,0))
+                    {
 
-                    if(group==1 && !tHap.missing[0])
-                        if(!tHap.getMissingScaffoldedHaplotype(i,0))
-                            Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],
-                                tHap.getScaffoldedHaplotype(i,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
-                                tHap.getScaffoldedHaplotype(i,0),MM.backgroundError, foldedProb.size(),rHap.ReducedStructureInfo[0]);
+                        ConditionJunctionProb(rHap,0,MM.junctionLeftProb[0],
+                                              MM.Error[0],
+                                              tHap.getScaffoldedHaplotype(i,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
+                                              tHap.getScaffoldedHaplotype(i,0),
+                                              MM.backgroundError,
+                                              rHap.ReducedStructureInfo[0]);
 
-
-
-                    MM.WalkLeft(tHap,i,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],foldedProb,optStructure[group-1],optStructure[group],rHap.ReducedStructureInfo[group-1],rHap.AlleleFreq);
-
-                    splitFoldedProb(recomProb,MM.leftProb[group-1][optStructure[group]-optStructure[group-1]],MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]]);
-
-                    MM.unfoldProbabilities(group-1,recomProb,MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]],foldedProb,0,rHap.ReducedStructureInfo,refCount);
-
-
+                    }
                 }
 
+
+                for(int group=1;group<=rHap.NoBlocks;group++)
+                {
+                    LeftTraverse(rHap,tHap,i,MM,group,recomProb,rHap);
+                }
+
+                double tempLogLikelihoodValue=CalculateLikelihood(rHap,MM);
                 if(em)
                 {
-                    for(int group=optStructure.size()-1;group>0;group--)
+                    for(int group=rHap.NoBlocks;group>0;group--)
                     {
-                        MM.foldProbabilities(foldedProb,group-1,rHap.ReducedStructureInfo[group-1],1,refCount);
-                        noRecomProb=foldedProb;
-
-
-
-                        MM.CountExpected(tHap,i,foldedProb,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],rightProbTemp,noRecomProb,
-                                         MM.junctionLeftProb[group-1],MM.junctionRightProb[group],optStructure[group-1],optStructure[group],rHap.ReducedStructureInfo[group-1],rHap.AlleleFreq);
-
-
-
-                        splitFoldedProb(recomProb,rightProbTemp,noRecomProb);
-                        MM.unfoldProbabilities(group-1,recomProb,noRecomProb,foldedProb,1,rHap.ReducedStructureInfo,refCount);
+                        EMTraverse(rHap,tHap,i,MM,group,
+                              recomProb,PrevRightFoldedProb,
+                              CurrentRightProb,CurrentNoRecoRightProb,rHap);
                     }
-
-
-
                     MM.empiricalCount++;
                 }
-
 
                 #pragma omp critical
                  {
                     (*MP)+=MM;
-                    double tempLogLikelihoodValue=0.0;
-                    for(int tempVar=0;tempVar<(int)MM.leftProb[MM.leftProb.size()-1][MM.leftProb[MM.leftProb.size()-1].size()-1].size();tempVar++)
-                    {
-                        tempLogLikelihoodValue+=MM.leftProb[MM.leftProb.size()-1][MM.leftProb[MM.leftProb.size()-1].size()-1][tempVar];
-                    }
-                    tempLogLikelihoodValue=log(tempLogLikelihoodValue);
-                    tempLogLikelihoodValue-=(MM.NoPrecisionJumps*log(1e15));
                     LogLikelihoodValue+=tempLogLikelihoodValue;
                 }
             }
         }
-
 
 
         MP->UpdateModel();
@@ -297,16 +343,320 @@ MarkovParameters* Imputation::createEstimates(HaplotypeSet &rHap,HaplotypeSet &t
     MP->WriteParameters(rHap.markerName, outFile, false);
     int time_load = time(0) - time_prev;
 
-    rHap.RsId=RsId;
-    if(rHap.vcfType)
+    cout << "\n Time taken for parameter estimation = " << time_load << " seconds. "<<endl;
+
+
+    if(rHap.vcfType || EstimationRounds>0)
+    {
+        std::cout << "\n Writing final reduced haplotype information to [.m3vcf] file  : " <<outFile+".m3vcf" + (gzip ? ".gz" : "")<< endl<<endl;
         rHap.writem3vcfFile(outFile,gzip);
 
-    cout << "\n Time taken for parameter estimation = " << time_load << " seconds. "<<endl<<endl;
+        if(rHap.vcfType)
+       {
+            remove(outFile+".draft"+".m3vcf" + (gzip ? ".gz" : ""));
+            std::cout << "\n Temporary Draft [.m3vcf] file "<<outFile+".draft"+".m3vcf" + (gzip ? ".gz" : "")<<" deleted ... "<< endl<<endl;
+       }
+
+    }
+
 
     return MP;
 
 
 }
+
+
+void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String Golden)
+{
+
+    vector<int> optStructure=rHap.optEndPoints;
+    int time_prev = time(0),time_load,vcfSampleIndex=0;;
+    includeGwas=true;
+
+
+    MarkovParameters* MP=createEstimates(rHap,tHap,rHap.optEndPoints,1-includeGwas);
+
+    cout<<" ------------------------------------------------------------------------------"<<endl;
+    cout<<"                              MAIN IMPUTATION                                  "<<endl;
+    cout<<" ------------------------------------------------------------------------------"<<endl;
+
+
+    ImputationStatistics stats(rHap.numMarkers );
+    IFILE dosages=NULL, hapdose=NULL, haps=NULL,vcfdosepartial=NULL;
+    HaplotypeSet DosageForVcfPartial;
+    DosageForVcfPartial.unphasedOutput=unphasedOutput;
+    DosageForVcfPartial.TypedOnly=tHap.TypedOnly;
+    DosageForVcfPartial.GWASOnlycounter=tHap.GWASOnlycounter;
+
+    if(tHap.TypedOnly)
+    {
+        printf("\n Calculating Allele Frequency for Typed-Only variants ... ");
+        cout<<endl;
+        tHap.CalculateGWASOnlyFreq();
+
+    }
+
+    cout << "\n Starting Imputation ...";
+    printf("\n\n Setting up Markov Model for Imputation ...");
+    cout<<endl<<endl;
+
+
+    if (phased && !unphasedOutput)
+    {
+
+        hapdose = ifopen(outFile + ".hapDose" + (gzip ? ".gz" : ""), "wb", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
+        haps = ifopen(outFile + ".hapLabel" + (gzip ? ".gz" : ""), "wb", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
+
+    }
+
+    int maxVcfSample=200,NumVcfWritten=0,NumVcfCreated=0,NovcfParts=1;
+
+    if((maxVcfSample)>=tHap.numSamples)
+        maxVcfSample=tHap.numSamples;
+
+    if(vcfOutput)
+    {
+
+
+        vcfdosepartial = ifopen(outFile + ".dose.vcf" + (gzip ? ".gz" : ""), "wb", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
+        ifprintf(vcfdosepartial,"##fileformat=VCFv4.1\n");
+        time_t t = time(0);
+        struct tm * now = localtime( & t );
+        ifprintf(vcfdosepartial,"##filedate=%d.%d.%d\n",(now->tm_year + 1900),(now->tm_mon + 1) ,now->tm_mday);
+        ifprintf(vcfdosepartial,"##source=Minimac3\n");
+        ifprintf(vcfdosepartial,"##contig=<ID=%s>\n",rHap.finChromosome.c_str());
+
+        if(GT)
+                ifprintf(vcfdosepartial,"##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
+        if(tHap.AllMaleTarget)
+        {
+            if(DS)
+                ifprintf(vcfdosepartial,"##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"Estimated Alternate Allele Dosage (For Male Chr: X) : [P(Alt Allele)]\">\n");
+            if(GP)
+                ifprintf(vcfdosepartial,"##FORMAT=<ID=GP,Number=2,Type=Float,Description=\"Estimated Posterior Probabilities for Genotypes 0 and 1 (For Male Chr: X) \">\n");
+        }
+        else
+        {
+            if(DS)
+                ifprintf(vcfdosepartial,"##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"Estimated Alternate Allele Dosage : [P(0/1)+2*P(1/1)]\">\n");
+            if(GP)
+                ifprintf(vcfdosepartial,"##FORMAT=<ID=GP,Number=3,Type=Float,Description=\"Estimated Posterior Probabilities for Genotypes 0/0, 0/1 and 1/1 \">\n");
+        }
+
+
+        ifprintf(vcfdosepartial,"##INFO=<ID=MAF,Number=1,Type=Float,Description=\"Estimated Alternate Allele Frequency\">\n");
+        ifprintf(vcfdosepartial,"##INFO=<ID=R2,Number=1,Type=Float,Description=\"Estimated Imputation Accuracy\">\n");
+        ifprintf(vcfdosepartial,"##INFO=<ID=ER2,Number=1,Type=Float,Description=\"Empirical (Leave-One-Out) R-square (available only for genotyped variants)\">\n");
+        ifprintf(vcfdosepartial,"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT");
+        ifclose(vcfdosepartial);
+
+        if(!tHap.AllMaleTarget)
+            DosageForVcfPartial.InitializePartialDosageForVcfOutput((2*maxVcfSample),rHap.numMarkers,format);
+        else
+            DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples(maxVcfSample<MaxSample?maxVcfSample:MaxSample,rHap.numMarkers,format);
+    }
+
+    if(doseOutput)
+        dosages = ifopen(outFile + ".dose" + (gzip ? ".gz" : ""), "wb",(gzip ? InputFile::BGZF:InputFile::UNCOMPRESSED) );
+
+
+    #pragma omp parallel for
+    for(int hapId=0;hapId<MaxSample;hapId++)
+    {
+
+
+        if (hapId %2==1)
+        {
+            if(rHap.finChromosome!="X")
+                continue;
+            else if(!tHap.AllMaleTarget)
+                continue;
+        }
+
+        vector<float> foldedProb,noRecomProb, rightProb,FirstHapDoseForVCF;
+        vector<bool> padded(rHap.numMarkers),paddedMissing(rHap.numMarkers), FirstHapAlleleForVCF;
+        vector<float> PrevRightFoldedProb,CurrentRightProb,CurrentNoRecoRightProb,recomProb;
+
+        MarkovModel MM(tHap,rHap,tHap.missing,rHap.major,LowMemory);
+        MM.CopyParameters(MP);
+        MM.initializeMatrices(rHap,tHap);
+
+        int hapIdIndiv=hapId;
+        do{
+
+            printf("  Processing Haplotype %d of %d ...", hapIdIndiv + 1, MaxSample);
+            cout<<endl;
+
+            MM.ThisHapId=hapIdIndiv;
+            MM.ReinitializeMatrices();
+
+            if(!tHap.missing[0])
+            {
+                if(!tHap.getMissingScaffoldedHaplotype(hapIdIndiv,0))
+                {
+
+                    ConditionJunctionProb(rHap,0,MM.junctionLeftProb[0],
+                                          MM.Error[0],
+                                          tHap.getScaffoldedHaplotype(hapIdIndiv,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
+                                          tHap.getScaffoldedHaplotype(hapIdIndiv,0),
+                                          MM.backgroundError,
+                                          rHap.ReducedStructureInfo[0]);
+                }
+            }
+
+            for(int group=1;group<=rHap.NoBlocks;group++)
+            {
+                LeftTraverse(rHap,tHap,hapIdIndiv,MM,group,recomProb,rHap);
+            }
+
+            for(int group=rHap.NoBlocks;group>0;group--)
+            {
+                ImputeTraverse(rHap,tHap,hapIdIndiv,MM,group,
+                              recomProb,PrevRightFoldedProb,CurrentRightProb,CurrentNoRecoRightProb,rHap);
+            }
+
+            for(int jjj=0;jjj<rHap.numMarkers;jjj++)
+            {
+                padded[jjj]=tHap.getScaffoldedHaplotype(hapIdIndiv,jjj);
+                paddedMissing[jjj]=tHap.getMissingScaffoldedHaplotype(hapIdIndiv,jjj);
+            }
+
+            if(vcfOutput)
+            {
+                if(hapIdIndiv%2==0)
+                {
+                   FirstHapDoseForVCF= MM.imputedHap;
+                   FirstHapAlleleForVCF= MM.imputedAlleleNumber;
+                }
+            }
+            #pragma omp critical
+            {
+                stats.Update(MM.imputedHap, MM.leaveOneOut,padded,paddedMissing,rHap.major);
+            }
+
+            #pragma omp critical
+            if (phased && !unphasedOutput)
+            {
+
+                PrintHaplotypeData(rHap, tHap, hapdose, haps,
+                                    MM.imputedHap, MM.imputedAlleleNumber,
+                                    hapIdIndiv, tHap.AllMaleTarget?hapId:hapId/2);
+            }
+
+
+            if(tHap.AllMaleTarget)
+                break;
+            hapIdIndiv++;
+        }while(hapIdIndiv<MaxSample && hapIdIndiv%2==1);
+
+        #pragma omp critical
+        if(doseOutput)
+        {
+            PrintDosageData(rHap, tHap, dosages, MM.imputedDose, tHap.AllMaleTarget?hapId:hapId/2);
+        }
+         #pragma omp critical
+        if(vcfOutput)
+        {
+
+            printf("    Saving Individual %s for VCF File...\n",  tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str());
+            if(!tHap.AllMaleTarget)
+                DosageForVcfPartial.SaveDosageForVcfOutputSampleWise(NumVcfCreated-NumVcfWritten,
+                                                                 tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2],
+                                                                 FirstHapDoseForVCF,MM.imputedHap,
+                                                                 FirstHapAlleleForVCF,MM.imputedAlleleNumber);
+            else
+                DosageForVcfPartial.SaveDosageForVcfOutputSampleWiseChrX(NumVcfCreated-NumVcfWritten,
+                                                                 tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2],
+                                                                  MM.imputedHap,
+                                                                 MM.imputedAlleleNumber);
+
+            if(DosageForVcfPartial.TypedOnly)
+            {
+
+                DosageForVcfPartial.SaveIndexForGWASOnlyForVcfOutput(NumVcfCreated-NumVcfWritten,
+                                                                     tHap.AllMaleTarget?hapId:hapId/2);
+            }
+
+
+
+            NumVcfCreated++;
+            vcfSampleIndex++;
+
+            if(NumVcfCreated%maxVcfSample==0 || NumVcfCreated==(tHap.AllMaleTarget?MaxSample:MaxSample/2))
+            {
+
+                string PartialVcfFileName(outFile),tempFileIndex1(outFile);
+                stringstream strs;
+                strs<<(NovcfParts);
+
+
+                PartialVcfFileName+=(".dose.vcf.part." +
+                                      (string)(strs.str())
+                                     +(gzip ? ".gz" : ""));
+                if(!tHap.AllMaleTarget)
+                    printf("\n    --->>> Saving samples %d-%d in VCF file : %s ...\n\n",
+                       (NumVcfWritten)+1,(MaxSample/2<(NumVcfWritten+maxVcfSample)?MaxSample/2:(NumVcfWritten+maxVcfSample)),
+                       PartialVcfFileName.c_str());
+                else
+                    printf("\n    --->>> Saving samples %d-%d in VCF file : %s ...\n\n",
+                       (NumVcfWritten)+1,(MaxSample<(NumVcfWritten+maxVcfSample)?MaxSample:(NumVcfWritten+maxVcfSample)),
+                       PartialVcfFileName.c_str());
+
+
+                FlushPartialVcf(rHap,tHap,DosageForVcfPartial,PartialVcfFileName,NovcfParts);
+                if(NumVcfCreated<(tHap.AllMaleTarget?MaxSample:MaxSample/2))
+                {
+                    NovcfParts++;
+                    NumVcfWritten+=maxVcfSample;
+
+                    if(!tHap.AllMaleTarget)
+                        DosageForVcfPartial.InitializePartialDosageForVcfOutput(maxVcfSample<(MaxSample/2-NumVcfWritten)?2*maxVcfSample:2*(MaxSample/2-NumVcfWritten),rHap.numMarkers,format);
+                    else
+                        DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples(maxVcfSample<(MaxSample-NumVcfWritten)?maxVcfSample:(MaxSample-NumVcfWritten),rHap.numMarkers,format);
+
+                }
+            }
+        }
+    }
+
+    cout<<endl<<" Imputation Finished ... "<<endl;
+
+
+    if (phased && !unphasedOutput)
+    {
+        ifclose(hapdose);
+        ifclose(haps);
+
+        cout<<endl<<" Haplotype Dosage information written to : "<<
+            outFile + ".hapDose" + (gzip ? ".gz" : "")<<endl;
+        cout<<endl<<" Haplotype Allele information written to : "<<
+        outFile + ".hapLabel" + (gzip ? ".gz" : "")<<endl;
+    }
+
+
+
+    if(doseOutput)
+    {
+        ifclose(dosages);
+        cout<<endl<<" Dosage information written to           : "<<
+        outFile + ".dose" + (gzip ? ".gz" : "")<<endl;
+    }
+
+    PrintInfoFile(rHap,tHap,stats);
+
+    time_load = time(0) - time_prev;
+    cout << "\n Time taken for imputation = " << time_load << " seconds."<<endl<<endl;
+
+
+    if(vcfOutput)
+        MergeFinalVcfAllVariants(rHap,tHap,stats,NovcfParts);
+
+}
+
+
+
+
+
 
 
 
@@ -322,11 +672,6 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
     IFILE vcfdosepartial = ifopen(outFile + ".dose.vcf" + (gzip ? ".gz" : ""),  "a", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
 
     vector<IFILE> vcfdosepartialList(MaxIndex);
-
-
-
-
-
 
     for(int i=1;i<=MaxIndex;i++)
     {
@@ -349,7 +694,6 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
     for (int index =0; index < rHap.RefTypedTotalCount; index++)
     {
 
-//abort();
         if(index%10000==0)
         {
             printf("    Merging marker %d of %d [%.1f%%] to VCF File ...", index + 1, rHap.RefTypedTotalCount,100*(double)(index + 1)/(int)rHap.RefTypedTotalCount);
@@ -564,9 +908,6 @@ void Imputation::PrintDosageData(HaplotypeSet &rHap,HaplotypeSet &tHap,
                         outAllele1=1.0;
                 }
 
-//                if(!tHap.major[MarkerIndex])
-//                    outAllele1=1-outAllele1;
-
                 ifprintf(dosages, "\t%.3f", outAllele1);
             }
             else
@@ -591,12 +932,6 @@ void Imputation::PrintDosageData(HaplotypeSet &rHap,HaplotypeSet &tHap,
                         outAllele2=1.0;
 
                 }
-
-//                if(!tHap.major[MarkerIndex])
-//                {
-//                    outAllele1=1-outAllele1;
-//                    outAllele2=1-outAllele2;
-//                }
 
                 ifprintf(dosages, "\t%.3f", outAllele1+outAllele2);
             }
@@ -660,10 +995,6 @@ void Imputation::PrintHaplotypeData(HaplotypeSet &rHap,HaplotypeSet &tHap,
                  if(a1)
                         outAllele1=1.0;
             }
-
-//            if(!tHap.major[MarkerIndex])
-//                outAllele1=1-outAllele1;
-
 
             ifprintf(haps, "%c", labels[(int) (a1?
                      tHap.TypedOnlyVariantList[MarkerIndex].altAllele
@@ -738,329 +1069,6 @@ void Imputation::PrintInfoFile(HaplotypeSet &rHap,HaplotypeSet &tHap,  Imputatio
     cout<<endl<<" Summary information written to          : "<<outFile<<".info"<<endl;
    }
 
-void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String Golden)
-{
-
-    vector<int> optStructure=rHap.optEndPoints;
-
-    int time_prev = time(0),time_load,vcfSampleIndex=0;;
-    includeGwas=true;
-    MarkovParameters* MP=createEstimates(rHap,tHap,rHap.optEndPoints,1-includeGwas);
-
-    cout<<" ------------------------------------------------------------------------------"<<endl;
-    cout<<"                              MAIN IMPUTATION                                  "<<endl;
-    cout<<" ------------------------------------------------------------------------------"<<endl;
-
-
-    ImputationStatistics stats(rHap.numMarkers );
-    IFILE dosages=NULL, hapdose=NULL, haps=NULL,vcfdosepartial=NULL;
-    HaplotypeSet DosageForVcfPartial;
-    DosageForVcfPartial.unphasedOutput=unphasedOutput;
-    DosageForVcfPartial.TypedOnly=tHap.TypedOnly;
-    DosageForVcfPartial.GWASOnlycounter=tHap.GWASOnlycounter;
-
-    if(tHap.TypedOnly)
-    {
-        printf("\n Calculating Allele Frequency for Typed-Only variants ... ");
-        cout<<endl;
-        tHap.CalculateGWASOnlyFreq();
-
-    }
-
-    cout << "\n Starting Imputation ...";
-    printf("\n\n Setting up Markov Model for Imputation ...");
-    cout<<endl<<endl;
-
-
-    if (phased && !unphasedOutput)
-    {
-
-        hapdose = ifopen(outFile + ".hapDose" + (gzip ? ".gz" : ""), "wb", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
-        haps = ifopen(outFile + ".hapLabel" + (gzip ? ".gz" : ""), "wb", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
-
-    }
-
-    int maxVcfSample=200,NumVcfWritten=0,NumVcfCreated=0,NovcfParts=1;
-
-    if((maxVcfSample)>=tHap.numSamples)
-        maxVcfSample=tHap.numSamples;
-
-    if(vcfOutput)
-    {
-
-
-        vcfdosepartial = ifopen(outFile + ".dose.vcf" + (gzip ? ".gz" : ""), "wb", gzip ?InputFile::BGZF:InputFile::UNCOMPRESSED);
-        ifprintf(vcfdosepartial,"##fileformat=VCFv4.1\n");
-        time_t t = time(0);
-        struct tm * now = localtime( & t );
-        ifprintf(vcfdosepartial,"##filedate=%d.%d.%d\n",(now->tm_year + 1900),(now->tm_mon + 1) ,now->tm_mday);
-        ifprintf(vcfdosepartial,"##source=Minimac3\n");
-        if(GT)
-                ifprintf(vcfdosepartial,"##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
-        if(tHap.AllMaleTarget)
-        {
-            if(DS)
-                ifprintf(vcfdosepartial,"##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"Estimated Alternate Allele Dosage (For Male Chr: X) : [P(Alt Allele)]\">\n");
-            if(GP)
-                ifprintf(vcfdosepartial,"##FORMAT=<ID=GP,Number=2,Type=Float,Description=\"Estimated Posterior Probabilities for Genotypes 0 and 1 (For Male Chr: X) \">\n");
-        }
-        else
-        {
-            if(DS)
-                ifprintf(vcfdosepartial,"##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"Estimated Alternate Allele Dosage : [P(0/1)+2*P(1/1)]\">\n");
-            if(GP)
-                ifprintf(vcfdosepartial,"##FORMAT=<ID=GP,Number=3,Type=Float,Description=\"Estimated Posterior Probabilities for Genotypes 0/0, 0/1 and 1/1 \">\n");
-        }
-
-
-        ifprintf(vcfdosepartial,"##INFO=<ID=MAF,Number=1,Type=Float,Description=\"Estimated Alternate Allele Frequency\">\n");
-        ifprintf(vcfdosepartial,"##INFO=<ID=R2,Number=1,Type=Float,Description=\"Estimated Imputation Accuracy\">\n");
-        ifprintf(vcfdosepartial,"##INFO=<ID=ER2,Number=1,Type=Float,Description=\"Empirical (Leave-One-Out) R-square (available only for genotyped variants)\">\n");
-        ifprintf(vcfdosepartial,"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT");
-        ifclose(vcfdosepartial);
-
-        if(!tHap.AllMaleTarget)
-            DosageForVcfPartial.InitializePartialDosageForVcfOutput((2*maxVcfSample),rHap.numMarkers,format);
-        else
-            DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples(maxVcfSample<MaxSample?maxVcfSample:MaxSample,rHap.numMarkers,format);
-    }
-
-    if(doseOutput)
-        dosages = ifopen(outFile + ".dose" + (gzip ? ".gz" : ""), "wb",(gzip ? InputFile::BGZF:InputFile::UNCOMPRESSED) );
-
-
-    #pragma omp parallel for
-    for(int hapId=0;hapId<MaxSample;hapId++)
-    {
-
-
-        if (hapId %2==1)
-        {
-            if(rHap.finChromosome!="X")
-                continue;
-            else if(!tHap.AllMaleTarget)
-                continue;
-        }
-
-        vector<float> foldedProb,recomProb,noRecomProb, rightProb,probAlleleNoStandardize(8,0.0),tempDoseHap1;
-        vector<bool> tempHap(rHap.numMarkers),tempMissHap(rHap.numMarkers);
-        vector<bool> tempDoseAlleleHap1;
-
-        MarkovModel MM(tHap,rHap,tHap.missing,rHap.major);
-
-        MM.CopyParameters(MP);
-
-        int hapIdIndiv=hapId;
-
-        do{
-
-            MM.initializeMatrices(tHap,rHap,optStructure,rHap.ReducedStructureInfo);
-            printf("  Processing Haplotype %d of %d ...", hapIdIndiv + 1, MaxSample);
-            cout<<endl;
-
-
-            MM.ThisHapId=hapIdIndiv;
-
-
-            for(int group=1;group<(int)optStructure.size();group++)
-            {
-
-                MM.foldProbabilities(foldedProb,group-1,rHap.ReducedStructureInfo[group-1],0,refCount);
-                MM.leftNoRecoProb[group-1][0]=foldedProb;
-
-
-                if(group==1 && !tHap.missing[0])
-                        if(!tHap.getMissingScaffoldedHaplotype(hapIdIndiv,0))
-                            {
-
-                                Condition(rHap,0,foldedProb,MM.leftNoRecoProb[group-1][0],MM.Error[0],
-                                tHap.getScaffoldedHaplotype(hapIdIndiv,0)? rHap.AlleleFreq[0] : 1-rHap.AlleleFreq[0],
-                                tHap.getScaffoldedHaplotype(hapIdIndiv,0),MM.backgroundError,
-                                      foldedProb.size(),rHap.ReducedStructureInfo[0]);
-                            }
-
-
-
-                MM.WalkLeft(tHap,hapIdIndiv,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],
-                            foldedProb,optStructure[group-1],optStructure[group],
-                            rHap.ReducedStructureInfo[group-1],rHap.AlleleFreq);
-
-                splitFoldedProb(recomProb,MM.leftProb[group-1][optStructure[group]-optStructure[group-1]],MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]]);
-
-                MM.unfoldProbabilities(group-1,recomProb,MM.leftNoRecoProb[group-1][optStructure[group]-optStructure[group-1]],foldedProb,0,rHap.ReducedStructureInfo,refCount);
-
-            }
-
-
-
-            for(int group=optStructure.size()-1;group>0;group--)
-            {
-
-                MM.foldProbabilities(foldedProb,group-1,rHap.ReducedStructureInfo[group-1],1,refCount);
-                rightProb=foldedProb;
-                noRecomProb=foldedProb;
-
-                MM.Impute(tHap,foldedProb,hapIdIndiv,MM.leftProb[group-1],MM.leftNoRecoProb[group-1],rightProb,noRecomProb,MM.junctionLeftProb[group-1],
-                          MM.junctionRightProb[group],optStructure[group-1], optStructure[group],rHap.ReducedStructureInfo[group-1],1,rHap.AlleleFreq);
-
-                splitFoldedProb(recomProb,rightProb,noRecomProb);
-                MM.unfoldProbabilities(group-1,recomProb,noRecomProb,foldedProb,1,rHap.ReducedStructureInfo,refCount);
-            }
-
-            for(int jjj=0;jjj<rHap.numMarkers;jjj++)
-                {
-                    tempHap[jjj]=tHap.getScaffoldedHaplotype(hapIdIndiv,jjj);
-                    tempMissHap[jjj]=tHap.getMissingScaffoldedHaplotype(hapIdIndiv,jjj);
-
-                }
-
-            if(vcfOutput)
-            {
-                if(hapIdIndiv%2==0)
-                {
-                   tempDoseHap1= MM.imputedHap;
-                   tempDoseAlleleHap1= MM.imputedAlleleNumber;
-                }
-            }
-            #pragma omp critical
-            {
-                stats.Update(MM.imputedHap, MM.leaveOneOut,tempHap,tempMissHap,rHap.major);
-            }
-
-            #pragma omp critical
-            if (phased && !unphasedOutput)
-            {
-
-                PrintHaplotypeData(rHap, tHap, hapdose, haps,
-                                    MM.imputedHap, MM.imputedAlleleNumber,
-                                    hapIdIndiv, tHap.AllMaleTarget?hapId:hapId/2);
-            }
-
-
-            if(tHap.AllMaleTarget)
-                break;
-            hapIdIndiv++;
-        }while(hapIdIndiv<MaxSample && hapIdIndiv%2==1);
-
-        #pragma omp critical
-        if(doseOutput)
-        {
-            PrintDosageData(rHap, tHap, dosages, MM.imputedDose, tHap.AllMaleTarget?hapId:hapId/2);
-        }
-         #pragma omp critical
-        if(vcfOutput)
-        {
-
-            printf("    Saving Individual %s for VCF File...\n",  tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2].c_str());
-            if(!tHap.AllMaleTarget)
-                DosageForVcfPartial.SaveDosageForVcfOutputSampleWise(NumVcfCreated-NumVcfWritten,
-                                                                 tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2],
-                                                                 tempDoseHap1,MM.imputedHap,
-                                                                 tempDoseAlleleHap1,MM.imputedAlleleNumber);
-            else
-                DosageForVcfPartial.SaveDosageForVcfOutputSampleWiseChrX(NumVcfCreated-NumVcfWritten,
-                                                                 tHap.individualName[tHap.AllMaleTarget?hapId:hapId/2],
-                                                                  MM.imputedHap,
-                                                                 MM.imputedAlleleNumber);
-
-            if(DosageForVcfPartial.TypedOnly)
-            {
-
-                DosageForVcfPartial.SaveIndexForGWASOnlyForVcfOutput(NumVcfCreated-NumVcfWritten,
-                                                                     tHap.AllMaleTarget?hapId:hapId/2);
-            }
-
-
-
-            NumVcfCreated++;
-            vcfSampleIndex++;
-
-            if(NumVcfCreated%maxVcfSample==0 || NumVcfCreated==(tHap.AllMaleTarget?MaxSample:MaxSample/2))
-            {
-
-                string PartialVcfFileName(outFile),tempFileIndex1(outFile);
-                stringstream strs;
-                strs<<(NovcfParts);
-
-
-                PartialVcfFileName+=(".dose.vcf.part." +
-                                      (string)(strs.str())
-                                     +(gzip ? ".gz" : ""));
-                if(!tHap.AllMaleTarget)
-                    printf("\n    --->>> Saving samples %d-%d in VCF file : %s ...\n\n",
-                       (NumVcfWritten)+1,(MaxSample/2<(NumVcfWritten+maxVcfSample)?MaxSample/2:(NumVcfWritten+maxVcfSample)),
-                       PartialVcfFileName.c_str());
-                else
-                    printf("\n    --->>> Saving samples %d-%d in VCF file : %s ...\n\n",
-                       (NumVcfWritten)+1,(MaxSample<(NumVcfWritten+maxVcfSample)?MaxSample:(NumVcfWritten+maxVcfSample)),
-                       PartialVcfFileName.c_str());
-
-//if(NovcfParts==2)
-//    abort();
-
-
-                FlushPartialVcf(rHap,tHap,DosageForVcfPartial,PartialVcfFileName,NovcfParts);
-                if(NumVcfCreated<(tHap.AllMaleTarget?MaxSample:MaxSample/2))
-                {
-                    NovcfParts++;
-                    NumVcfWritten+=maxVcfSample;
-
-
-
-//int gg=maxVcfSample<(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten)?
-//2*maxVcfSample:2*(((tHap.AllMaleTarget?MaxSample:MaxSample/2))-NumVcfWritten);
-//
-//
-//abort();
-
-                    if(!tHap.AllMaleTarget)
-                        DosageForVcfPartial.InitializePartialDosageForVcfOutput(maxVcfSample<(MaxSample/2-NumVcfWritten)?2*maxVcfSample:2*(MaxSample/2-NumVcfWritten),rHap.numMarkers,format);
-                    else
-                        DosageForVcfPartial.InitializePartialDosageForVcfOutputMaleSamples(maxVcfSample<(MaxSample-NumVcfWritten)?maxVcfSample:(MaxSample-NumVcfWritten),rHap.numMarkers,format);
-
-
-                }
-            }
-
-        }
-    }
-
-    cout<<endl<<" Imputation Finished ... "<<endl;
-
-
-    if (phased && !unphasedOutput)
-    {
-        ifclose(hapdose);
-        ifclose(haps);
-
-        cout<<endl<<" Haplotype Dosage information written to : "<<
-            outFile + ".hapDose" + (gzip ? ".gz" : "")<<endl;
-        cout<<endl<<" Haplotype Allele information written to : "<<
-        outFile + ".hapLabel" + (gzip ? ".gz" : "")<<endl;
-    }
-
-
-
-    if(doseOutput)
-    {
-        ifclose(dosages);
-        cout<<endl<<" Dosage information written to           : "<<
-        outFile + ".dose" + (gzip ? ".gz" : "")<<endl;
-    }
-
-    PrintInfoFile(rHap,tHap,stats);
-
-    time_load = time(0) - time_prev;
-    cout << "\n Time taken for imputation = " << time_load << " seconds."<<endl<<endl;
-
-
-    if(vcfOutput)
-        MergeFinalVcfAllVariants(rHap,tHap,stats,NovcfParts);
-
-}
-
-
-
 
 void Imputation::splitFoldedProb(vector<float> &SplitProb, vector<float> &totalProb, vector<float> &noRecomProb)
 {
@@ -1070,20 +1078,6 @@ void Imputation::splitFoldedProb(vector<float> &SplitProb, vector<float> &totalP
     {
         SplitProb[i]=totalProb[i]-noRecomProb[i];
     }
-}
-
-
-
-
-void Imputation::normalize(vector<float> &x)
-{
-    float sum=0.0;
-    for(int i=0;i<(int)x.size();i++)
-        sum+=x[i];
-
-    for(int i=0;i<(int)x.size();i++)
-        x[i]/=sum;
-
 }
 
 
@@ -1116,69 +1110,95 @@ void Imputation::Condition(HaplotypeSet &rHap, int markerPos,vector<float> &Prob
 
 
 
-void Imputation::LooOptimalStructure( vector<ReducedHaplotypeInfo> &StructureInfo_loo,int loo,HaplotypeSet &rHap)
+void Imputation::ConditionJunctionProb(HaplotypeSet &rHap, int markerPos,vector<float> &Prob,
+                            double e, double freq, bool observed, double backgroundError,
+                            ReducedHaplotypeInfo &Info)
 {
-    StructureInfo_loo.clear();
-    StructureInfo_loo.resize(rHap.ReducedStructureInfo.size());
 
-    for(int i=0;i<(int)rHap.ReducedStructureInfo.size();i++)
+    double prandom = e*freq+backgroundError;
+    double pmatch = (1.0 - e)+e*freq+backgroundError;
+    int NoStates=rHap.numHaplotypes;
+
+    for (int i = 0; i<NoStates; i++)
+    {
+        Prob[i]*=Info.returnHapAtPosition(Info.uniqueIndexMap[i],markerPos)==observed ?
+                 pmatch:prandom;
+    }
+}
+
+
+
+
+void Imputation::LooOptimalStructure(int loo,HaplotypeSet &rHap, HaplotypeSet &HapLoo)
+{
+
+    HapLoo.numHaplotypes=rHap.numHaplotypes-1;
+    HapLoo.numMarkers=rHap.numMarkers;
+    HapLoo.maxBlockSize=rHap.maxBlockSize;
+    HapLoo.NoBlocks=rHap.NoBlocks;
+    HapLoo.maxRepSize=rHap.maxRepSize;
+    HapLoo.ReducedStructureInfo.clear();
+    HapLoo.ReducedStructureInfo.resize(rHap.NoBlocks);
+
+    for(int i=0;i<rHap.NoBlocks;i++)
     {
 
-
-        int looIndex=rHap.ReducedStructureInfo[i].uniqueIndexMap[loo];
-
-        StructureInfo_loo[i].uniqueCardinality=rHap.ReducedStructureInfo[i].uniqueCardinality;
-        StructureInfo_loo[i].InvuniqueCardinality=rHap.ReducedStructureInfo[i].InvuniqueCardinality;
-        StructureInfo_loo[i].startIndex=rHap.ReducedStructureInfo[i].startIndex;
-        StructureInfo_loo[i].endIndex=rHap.ReducedStructureInfo[i].endIndex;
+        ReducedHaplotypeInfo &ToBlock=HapLoo.ReducedStructureInfo[i];
+        ReducedHaplotypeInfo &FromBlock=rHap.ReducedStructureInfo[i];
 
 
+        int looIndex=FromBlock.uniqueIndexMap[loo];
 
-        StructureInfo_loo[i].uniqueCardinality[looIndex]--;
-        if(StructureInfo_loo[i].uniqueCardinality[looIndex]==0)
+        ToBlock.uniqueCardinality=FromBlock.uniqueCardinality;
+        ToBlock.startIndex=FromBlock.startIndex;
+        ToBlock.endIndex=FromBlock.endIndex;
+        ToBlock.BlockSize=FromBlock.BlockSize;
+
+        ToBlock.uniqueCardinality[looIndex]--;
+        if(ToBlock.uniqueCardinality[looIndex]==0)
         {
 
-            StructureInfo_loo[i].uniqueHaps.resize(rHap.ReducedStructureInfo[i].uniqueHaps.size()-1);
-            StructureInfo_loo[i].uniqueCardinality.clear();
-            StructureInfo_loo[i].uniqueCardinality.resize(rHap.ReducedStructureInfo[i].uniqueCardinality.size()-1);
-            for (int in = 0, out = 0; in <(int) rHap.ReducedStructureInfo[i].uniqueCardinality.size(); in++)
+            ToBlock.uniqueHaps.resize(FromBlock.RepSize-1);
+            ToBlock.uniqueCardinality.clear();
+            ToBlock.uniqueCardinality.resize(FromBlock.RepSize-1);
+            for (int in = 0, out = 0; in < FromBlock.RepSize; in++)
             {
                 if (in != looIndex)
                 {
-                    StructureInfo_loo[i].uniqueHaps[out] = rHap.ReducedStructureInfo[i].uniqueHaps[in];
-                    StructureInfo_loo[i].uniqueCardinality[out++] = rHap.ReducedStructureInfo[i].uniqueCardinality[in];
+                    ToBlock.uniqueHaps[out] = FromBlock.uniqueHaps[in];
+                    ToBlock.uniqueCardinality[out++] = FromBlock.uniqueCardinality[in];
                 }
-
             }
 
-
-            StructureInfo_loo[i].uniqueIndexMap.resize(rHap.ReducedStructureInfo[i].uniqueIndexMap.size()-1);
-            for (int in = 0, out = 0; in <(int) rHap.ReducedStructureInfo[i].uniqueIndexMap.size(); in++)
+            ToBlock.uniqueIndexMap.resize(rHap.numHaplotypes-1);
+            for (int in = 0, out = 0; in <(rHap.numHaplotypes); in++)
             {
 
-                if(rHap.ReducedStructureInfo[i].uniqueIndexMap[in]<looIndex)
-                    StructureInfo_loo[i].uniqueIndexMap[out++] = rHap.ReducedStructureInfo[i].uniqueIndexMap[in];
-                else if(rHap.ReducedStructureInfo[i].uniqueIndexMap[in]>looIndex)
-                    StructureInfo_loo[i].uniqueIndexMap[out++] = rHap.ReducedStructureInfo[i].uniqueIndexMap[in]-1;
-
+                if(FromBlock.uniqueIndexMap[in]<looIndex)
+                    ToBlock.uniqueIndexMap[out++] = FromBlock.uniqueIndexMap[in];
+                else if(FromBlock.uniqueIndexMap[in]>looIndex)
+                    ToBlock.uniqueIndexMap[out++] = FromBlock.uniqueIndexMap[in]-1;
             }
         }
         else
         {
-            StructureInfo_loo[i].uniqueHaps=rHap.ReducedStructureInfo[i].uniqueHaps;
-            StructureInfo_loo[i].uniqueIndexMap.resize(rHap.ReducedStructureInfo[i].uniqueIndexMap.size()-1);
-            for (int in = 0, out = 0; in <(int) rHap.ReducedStructureInfo[i].uniqueIndexMap.size(); in++)
+            ToBlock.uniqueHaps=FromBlock.uniqueHaps;
+            ToBlock.uniqueIndexMap.resize(rHap.numHaplotypes-1);
+            for (int in = 0, out = 0; in <(rHap.numHaplotypes); in++)
             {
                 if(in!=loo)
-                    StructureInfo_loo[i].uniqueIndexMap[out++] = rHap.ReducedStructureInfo[i].uniqueIndexMap[in];
+                    ToBlock.uniqueIndexMap[out++] = FromBlock.uniqueIndexMap[in];
+
             }
 
         }
 
+        ToBlock.RepSize=ToBlock.uniqueCardinality.size();
+        ToBlock.InvuniqueCardinality.resize(ToBlock.RepSize);
 
-        for (int in = 0; in < (int)StructureInfo_loo[i].uniqueCardinality.size(); in++)
+        for (int in = 0; in < ToBlock.RepSize; in++)
         {
-            StructureInfo_loo[i].InvuniqueCardinality[in]=1.0/(float)StructureInfo_loo[i].uniqueCardinality[in];
+            ToBlock.InvuniqueCardinality[in]=1.0/(float)ToBlock.uniqueCardinality[in];
         }
 
     }

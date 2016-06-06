@@ -2,7 +2,7 @@
 # the Makefile it should include from libStatGen/Makefiles/$(PARENT_MAKE)
 
 # Update version as necessary.
-VERSION=1.0.14
+VERSION=2.0.1
 
 ########################
 # Library Path:

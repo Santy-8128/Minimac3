@@ -15,7 +15,6 @@ ImputationStatistics::ImputationStatistics(int markers)
    looProduct.resize(markers, 0.0);
    looObserved.resize(markers, 0.0);
     looObservedSq.resize(markers, 0.0);
-    TargetPanelFreq.resize(markers, 0.0);
 
    count.resize(markers,0);
    looCount.resize(markers,0);
@@ -57,7 +56,7 @@ double ImputationStatistics::Rsq(int marker)
    double ovar = 0.0;
 
    if((sumSq[marker] - sum[marker] * sum[marker] / (count[marker] + 1e-30))>0)
-        ovar=(sumSq[marker] - sum[marker] * sum[marker] / (count[marker] + 1e-30)) / (count[marker] - 1 + 1e-30);
+        ovar=(sumSq[marker] - sum[marker] * sum[marker] / (count[marker] + 1e-30)) / (count[marker] + 1e-30);
 
    return ovar / (evar + 1e-30);
    }
@@ -72,7 +71,7 @@ double ImputationStatistics::LooRsq(int marker)
     double ovar = 0.0;
 
     if(((looSumSq[marker] - looSum[marker] * looSum[marker] / (looCount[marker] + 1e-30)))>0)
-        ovar = (looSumSq[marker] - looSum[marker] * looSum[marker] / (looCount[marker] + 1e-30)) / (looCount[marker] - 1 + 1e-30);
+        ovar = (looSumSq[marker] - looSum[marker] * looSum[marker] / (looCount[marker] + 1e-30)) / (looCount[marker] + 1e-30);
 
     return ovar / (evar + 1e-30);
    }

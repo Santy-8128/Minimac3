@@ -37,7 +37,7 @@ int main(int argc, char ** argv)
     cpus=5;
     #endif
 
-	bool log = false, duplicates=false, unphasedOutput=false, phased = false,passOnly = false, doseOutput = false, vcfOutput = true, gzip = true, nobgzip = false, rsid=false;
+	bool log = false, lowMemory=false, duplicates=false, unphasedOutput=false, phased = false,passOnly = false, doseOutput = false, vcfOutput = true, gzip = true, nobgzip = false, rsid=false;
 	bool processReference=false,updateModel=false, typedOnly=false, help = false, params = false;
     String MyChromosome="";
 
@@ -77,6 +77,7 @@ int main(int argc, char ** argv)
 		LONG_INTPARAMETER("states", &states)
 		LONG_PARAMETER_GROUP("Other Parameters")
 		LONG_PARAMETER("log", &log)
+		LONG_PARAMETER("lowMemory", &lowMemory)
 		LONG_PARAMETER("help", &help)
 		LONG_INTPARAMETER("cpus", &cpus)
 		LONG_PARAMETER("params", &params)
@@ -349,11 +350,22 @@ int main(int argc, char ** argv)
         }
     }
 
+
+
+    if(lowMemory)
+     {
+        cout<<" Low Memory Version of Minimac3 initiated  !!! \n"<<endl;
+    }
+
+
+
     HaplotypeSet target,reference;
     target.MyChromosome=(string)MyChromosome;
     reference.MyChromosome=(string)MyChromosome;
     reference.CPU=cpus;
     reference.Duplicates=duplicates;
+
+
 
 
 
@@ -478,7 +490,7 @@ int main(int argc, char ** argv)
     reference.updateCoeffs(transFactor,cisFactor);
 
 
-	if (!reference.FasterLoadHaplotypes(refHaps, max_indiv, max_marker,chr,start,end,window,rsid,processReference,passOnly))
+	if (!reference.FasterLoadHaplotypes(refHaps, max_indiv, max_marker,chr,start,end,window,rsid,processReference,passOnly,outfile,gzip))
 	{
 		cout << "\n Program Exiting ... \n\n";
 		compStatus="Reference.Panel.Load.Error";
@@ -493,7 +505,7 @@ int main(int argc, char ** argv)
     {
 	    Imputation thisDataFast(reference, reference, outfile, errFile, recFile, phased
                              , gzip, rsid, rounds, states, vcfOutput, doseOutput
-                             , typedOnly,formatVector);
+                             , typedOnly,formatVector,lowMemory);
         thisDataFast.createEstimates(reference, reference, reference.optEndPoints, true);
 	}
 
@@ -531,7 +543,7 @@ int main(int argc, char ** argv)
 	{
 	    Imputation thisDataFast(target, reference, outfile, errFile, recFile, phased
                              , gzip, rsid, rounds, states, vcfOutput, doseOutput
-                             , typedOnly,formatVector,updateModel,unphasedOutput);
+                             , typedOnly,formatVector,updateModel,unphasedOutput,lowMemory);
 
         thisDataFast.performImputation(target, reference, golden);
 	}
@@ -585,9 +597,6 @@ void Minimac3Version()
 void helpFile()
 {
 
-
-
-
     printf("\n\n\t  Minimac3 is a lower memory and more computationally efficient implementation of \"minimac2\".\n");
 
 
@@ -602,48 +611,59 @@ printf("\n\n -------------------------------------------------------------------
 	printf(" -----------------------------------------------------------------------------------------\n\n");
 
     printf(" --------- Reference Haplotypes --------- \n");
-    printf("\n     --refHaps filename   : VCF file or M3VCF file containing haplotype data for reference panel.\n");
+  printf("\n              --refHaps   : VCF file or M3VCF file containing haplotype data for reference panel.\n");
     printf("             --passOnly   : This option only imports variants with FILTER = PASS.\n");
+    printf("                 --rsid   : This option only imports RS ID of variants from ID column (if available).\n");
 
 
 
   printf("\n --------- GWAS Haplotypes --------- \n");
-  printf("\n        --haps filename   : File containing haplotype data for target (gwas) samples. Must be VCF \n");
+  printf("\n                 --haps   : File containing haplotype data for target (gwas) samples. Must be VCF \n");
     printf("                            file. Zipped versions allowed.\n");
 
   printf("\n --------- Output Parameters --------- \n");
-  printf("\n        --prefix output   : Prefix for all output files generated. By default: [Minimac3.Output]\n");
+  printf("\n               --prefix   : Prefix for all output files generated. By default: [Minimac3.Output]\n");
     printf("     --processReference   : This option will only convert an input VCF file to M3VCF format\n");
     printf("                            (maybe for a later run of imputation). If this option is ON, \n");
     printf("                            no imputation would be performed.\n");
     printf("              --nobgzip   : If ON, output files will NOT be gzipped.\n");
     printf("          --updateModel   : If ON, the GWAS panel will also be used to update the parameter \n");
     printf("                            estimates (if and when estimates are found in M3VCF files)\n");
-    printf("           --doseOutput   : If ON, imputed data will be output as MaCH dosage file [Default: OFF].\n");
-    printf("            --hapOutput   : If ON, phased imputed data will be output as well [Default: OFF]. \n");
+    printf("            --vcfOutput   : If ON, imputed data will NOT be output as VCF dosage file [Default: ON].\n");
+    printf("           --doseOutput   : If ON, imputed data will be output as MaCH dosage file    [Default: OFF].\n");
+    printf("            --hapOutput   : If ON, phased imputed data will be output as well         [Default: OFF]. \n");
     printf("               --format   : Specifies which fields to output for the FORMAT field in output \n");
     printf("                            VCF file. Available handles: GT,DS,GP [Default: GT,DS].\n");
+    printf("        --allTypedSites   : If ON, sites available ONLY in GWAS panel will also be output [Default: OFF]. \n");
 
 
 
   printf("\n --------- Subset Parameters --------- \n");
-  printf("\n               --chr 22   : Chromosome number for which we will carry out imputation.\n");
-    printf("         --start 100000   : Start position for imputation by chunking.\n");
-    printf("           --end 200000   : End position for imputation by chunking. \n");
-    printf("         --window 20000   : Length of buffer region on either side of --start and --end.\n");
+  printf("\n                  --chr   : Chromosome number for which to carry out imputation.\n");
+    printf("                --start   : Start position for imputation by chunking.\n");
+    printf("                  --end   : End position for imputation by chunking. \n");
+    printf("               --window   : Length of buffer region on either side of --start and --end.\n");
 
 
   printf("\n --------- Estimation Parameters --------- \n");
-  printf("\n             --rounds 5   : Rounds of optimization for model parameters, which describe population \n");
+  printf("\n               --rounds   : Rounds of optimization for model parameters, which describe population \n");
     printf("                            recombination rates and per SNP error rates. By default = 5.\n");
-    printf("           --states 200   : Maximum number of reference (or target) haplotypes to be examined  \n");
+    printf("               --states   : Maximum number of reference (or target) haplotypes to be examined  \n");
     printf("                            during parameter optimization. By default = 200.\n");
-    printf("               --cpus 5   : Number of cpus for parallel computing. Works only with Minimac3-omp.\n\n");
+
+  printf("\n --------- Starting Parameters --------- \n");
+  printf("\n                  --rec   : Recombination estimates file from a previous run of Minimac3.\n");
+    printf("                  --err   : Error estimates file from a previous run of Minimac3.\n");
+
+  printf("\n --------- Other Parameters --------- \n");
+  printf("\n                  --log   : If ON, log will be written to $prefix.logfile.\n");
+    printf("                 --help   : If ON, detailed help on options and usage.\n");
+    printf("            --lowMemory   : If ON, a low memory version of Minimac3 will be run.\n");
+    printf("                 --cpus   : Number of cpus for parallel computing. Works only with Minimac3-omp.\n\n");
+
 
   printf("\n Please visit <http://genome.sph.umich.edu/wiki/Minimac3> for detailed documentation ...\n\n");
     cout<<endl;
-
-
 
 	return;
 }

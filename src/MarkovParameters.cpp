@@ -232,7 +232,6 @@ void MarkovParameters::UpdateModel()
 
     backgroundR /= (double)empiricalCount * backgroundRcount + 1e-30;
     backgroundE /= (double)empiricalCount * backgroundEcount + 1e-30;
-    // cout<<"WELL = "<<backgroundR<<endl;
 
     for (int i = 0; i < noMarker - 1; i++)
     {
@@ -241,7 +240,6 @@ void MarkovParameters::UpdateModel()
 
         empError[i]=0.0;
         empRecom[i]=0.0;
- //assert(Recom[i] >0);
 
     }
 
