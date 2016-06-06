@@ -5,6 +5,25 @@ Minimac3 Changes:
 --------------------------------------------------------------------------
 --------------------------------------------------------------------------
 
+Version : 2.0.1
+Author  : Sayantan Das
+Date    : June 6, 2016
+
+	Major Changes:
+	1. Reduced memory usage significantly (by 35% for HRC panel)
+	2. Reduced run time significantly (by 20% for HRC panel)
+	3. Added a --lowMemory version that further reduces the memory usage
+	   furhter by 33% (but takes 10% more time.
+	
+	Minor Changes:
+	1. Fixed a minor bug in parameter estimation (--processReference)
+	2. Added a draft.m3vcf file output after file compression and
+	   before parameter estimation.
+	3. Changed definition of Estimated R-square so that no estimates
+	   are over 1.0.
+	   
+--------------------------------------------------------------------------
+
 Version : 1.0.14
 Author  : Sayantan Das
 Date    : April 15, 2016
