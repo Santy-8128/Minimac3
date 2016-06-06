@@ -21,6 +21,7 @@ Date    : June 6, 2016
 	   before parameter estimation.
 	3. Changed definition of Estimated R-square so that no estimates
 	   are over 1.0.
+	4. Added <contig> in VCF header to make bcftools readable.
 	   
 --------------------------------------------------------------------------
 
