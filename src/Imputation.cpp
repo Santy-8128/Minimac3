@@ -718,7 +718,7 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
                  if(!tHap.missing[i])
                     ifprintf(vcfdosepartial,";GENOTYPED");
 
-                ifprintf(vcfdosepartial,"\tAF=%.5f,MAF=%.5f;R2=%.5f",
+                ifprintf(vcfdosepartial,"\tAF=%.5f;MAF=%.5f;R2=%.5f",
                         stats.AlleleFrequency(i),
                         stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),
                         stats.Rsq(i));
