@@ -760,7 +760,7 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
                      ThisTypedVariant.altAlleleString.c_str());
 
 
-            ifprintf(vcfdosepartial,"AF=%d;MAF=%.5f",
+            ifprintf(vcfdosepartial,"AF=%.5f;MAF=%.5f",
                     tHap.AlleleFreq[rHap.RefTypedIndex[index]],
                      tHap.AlleleFreq[rHap.RefTypedIndex[index]] > 0.5 ?
                       1.0 - tHap.AlleleFreq[rHap.RefTypedIndex[index]] : tHap.AlleleFreq[rHap.RefTypedIndex[index]]);
