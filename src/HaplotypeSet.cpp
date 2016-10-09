@@ -924,7 +924,7 @@ bool HaplotypeSet::readm3vcfFile(String m3vcfFile,String CHR,int START,int END,i
 
     numMarkers=writeBlockIndex;
 
-    cout<<endl<<" Reference Haplotype information succesfully recorded. "<<endl;
+    cout<<endl<<" Reference Haplotype information successfully recorded. "<<endl;
 
 
     if(finChromosome=="X")
@@ -2492,7 +2492,7 @@ bool HaplotypeSet::LoadVcfTargetHaplotypes(String filename, String snpNames, vec
 	{
 
 		cout << "\n No overlap between Target and Reference markers !!!\n";
-		cout << " Please check for consistent marker identifer in reference and target input files..\n";
+		cout << " Please check for consistent marker identifier in reference and target input files..\n";
 		cout << " Program Aborting ... \n";
 		return false;
 
