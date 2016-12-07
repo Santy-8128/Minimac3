@@ -94,7 +94,7 @@ void MarkovParameters::CopyParameters(MarkovParameters & rhs)
 
     if(noMarker!=rhs.noMarker)
     {
-        cout<<"\n\n Run Time Error !!! Markov Parameters cannot be copied. Incosistent number of markers ...\n";
+        cout<<"\n\n Run Time Error !!! Markov Parameters cannot be copied. Inconsistent number of markers ...\n";
         cout<<" Contact Author for more details ...\n";
         cout<<" Program Exiting ...\n\n";
         abort();
