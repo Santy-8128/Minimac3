@@ -426,6 +426,7 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         ifprintf(vcfdosepartial,"##source=Minimac3\n");
         ifprintf(vcfdosepartial,"##contig=<ID=%s>\n",rHap.finChromosome.c_str());
         ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED>\n");
+        ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED_ONLY>\n");
         if(GT)
                 ifprintf(vcfdosepartial,"##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
         if(tHap.AllMaleTarget)
