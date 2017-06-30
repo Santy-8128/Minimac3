@@ -425,8 +425,8 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         ifprintf(vcfdosepartial,"##filedate=%d.%d.%d\n",(now->tm_year + 1900),(now->tm_mon + 1) ,now->tm_mday);
         ifprintf(vcfdosepartial,"##source=Minimac3\n");
         ifprintf(vcfdosepartial,"##contig=<ID=%s>\n",rHap.finChromosome.c_str());
-        ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED>\n");
-        ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED_ONLY>\n");
+        ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED,Description=\"Empirically genotyped SNP\">\n");
+        ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED_ONLY,Description=\"\">\n");
         if(GT)
                 ifprintf(vcfdosepartial,"##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
         if(tHap.AllMaleTarget)
