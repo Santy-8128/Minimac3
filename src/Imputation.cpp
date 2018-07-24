@@ -425,8 +425,6 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         ifprintf(vcfdosepartial,"##filedate=%d.%d.%d\n",(now->tm_year + 1900),(now->tm_mon + 1) ,now->tm_mday);
         ifprintf(vcfdosepartial,"##source=Minimac3\n");
         ifprintf(vcfdosepartial,"##contig=<ID=%s>\n",rHap.finChromosome.c_str());
-        ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED,Description=\"Marker was genotyped AND imputed\">\n");
-        ifprintf(vcfdosepartial,"##FILTER=<ID=GENOTYPED_ONLY,Description=\"Marker was genotyped but NOT imputed\">\n");
         if(GT)
                 ifprintf(vcfdosepartial,"##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
         if(tHap.AllMaleTarget)
@@ -445,6 +443,8 @@ void Imputation::performImputation(HaplotypeSet &tHap,HaplotypeSet &rHap, String
         }
 
 
+        ifprintf(vcfdosepartial,"##INFO=<ID=GENOTYPED,Number=0,Type=Flag,Description=\"Marker was genotyped AND imputed\">\n");
+        ifprintf(vcfdosepartial,"##INFO=<ID=GENOTYPED_ONLY,Number=0,Type=Flag,Description=\"Marker was genotyped but NOT imputed\">\n");
         ifprintf(vcfdosepartial,"##INFO=<ID=AF,Number=1,Type=Float,Description=\"Estimated Alternate Allele Frequency\">\n");
         ifprintf(vcfdosepartial,"##INFO=<ID=MAF,Number=1,Type=Float,Description=\"Estimated Minor Allele Frequency\">\n");
         ifprintf(vcfdosepartial,"##INFO=<ID=R2,Number=1,Type=Float,Description=\"Estimated Imputation Accuracy\">\n");
@@ -716,17 +716,17 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
                          rHap.VariantList[i].refAlleleString.c_str(),
                          rHap.VariantList[i].altAlleleString.c_str());
 
-                 if(!tHap.missing[i])
-                    ifprintf(vcfdosepartial,";GENOTYPED");
 
                 ifprintf(vcfdosepartial,"\tAF=%.5f;MAF=%.5f;R2=%.5f",
                         stats.AlleleFrequency(i),
                         stats.AlleleFrequency(i) > 0.5 ? 1.0 - stats.AlleleFrequency(i) : stats.AlleleFrequency(i),
                         stats.Rsq(i));
 
-
                 if(!tHap.missing[i])
                     ifprintf(vcfdosepartial,";ER2=%.5f",stats.EmpiricalRsq(i));
+
+                if(!tHap.missing[i])
+                    ifprintf(vcfdosepartial,";GENOTYPED");
 
                 ifprintf(vcfdosepartial,"\t%s",GT?(DS?(GP?"GT:DS:GP":"GT:DS"):(GP?"GT:GP":"GT")):(DS?(GP?"DS:GP":"DS"):(GP?"GP":"")));
 
@@ -753,7 +753,7 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
         {
 
             variant ThisTypedVariant =tHap.TypedOnlyVariantList[rHap.RefTypedIndex[index]];
-            ifprintf(vcfdosepartial,"\n%s\t%d\t%s\t%s\t%s\t.\tPASS;GENOTYPED_ONLY\t",
+            ifprintf(vcfdosepartial,"\n%s\t%d\t%s\t%s\t%s\t.\tPASS\t",
                      ThisTypedVariant.chr.c_str(),
                      ThisTypedVariant.bp,
                      RsId? ThisTypedVariant.rsid.c_str():ThisTypedVariant.name.c_str(),
@@ -761,7 +761,7 @@ void Imputation::MergeFinalVcfAllVariants(HaplotypeSet &rHap,HaplotypeSet &tHap,
                      ThisTypedVariant.altAlleleString.c_str());
 
 
-            ifprintf(vcfdosepartial,"AF=%.5f;MAF=%.5f",
+            ifprintf(vcfdosepartial,"AF=%.5f;MAF=%.5f;GENOTYPED_ONLY",
                     tHap.AlleleFreq[rHap.RefTypedIndex[index]],
                      tHap.AlleleFreq[rHap.RefTypedIndex[index]] > 0.5 ?
                       1.0 - tHap.AlleleFreq[rHap.RefTypedIndex[index]] : tHap.AlleleFreq[rHap.RefTypedIndex[index]]);
